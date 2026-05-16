@@ -2,8 +2,10 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Alert, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Calendar } from 'lucide-react-native';
+import { ApproverCard } from '@shared/components/ApproverCard';
 import { BalanceCard } from '@shared/components/BalanceCard';
 import { Button } from '@shared/components/Button';
+import { NoticeCard } from '@shared/components/NoticeCard';
 import { Screen } from '@shared/components/Screen';
 import { Select } from '@shared/components/Select';
 import { DateField } from '@shared/components/DateField';
@@ -176,23 +178,38 @@ export function ApplyLeaveScreen({ navigation }: Props): React.JSX.Element {
             placeholder="Jelaskan alasan cuti"
             multiline
             numberOfLines={4}
+            maxLength={500}
             style={styles.textArea}
             error={errors.description}
+            hint={`${description.length} / 500 karakter`}
+          />
+
+          {totalDays > 0 && currentBalance !== null && totalDays > currentBalance ? (
+            <NoticeCard
+              variant="warning"
+              title="Melebihi sisa cuti"
+              body={`Pengajuan ${totalDays} hari melebihi sisa ${currentBalance} hari. Atasan mungkin tolak.`}
+            />
+          ) : null}
+
+          <ApproverCard
+            name="Atasan langsung"
+            role="Permohonan akan masuk ke atasan Anda saat dikirim"
           />
         </View>
-
-        <View style={styles.cta}>
-          <Button fullWidth onPress={onSubmit} loading={submitting}>
-            Kirim Permohonan
-          </Button>
-        </View>
       </ScrollView>
+
+      <View style={styles.stickyCta}>
+        <Button fullWidth onPress={onSubmit} loading={submitting}>
+          Kirim Permohonan
+        </Button>
+      </View>
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  scroll: { gap: tokens.spacing.sp4 },
+  scroll: { gap: tokens.spacing.sp4, paddingBottom: 120 },
   form: { gap: tokens.spacing.sp3 },
   totalHint: {
     fontSize: tokens.fontSize.body,
@@ -212,5 +229,16 @@ const styles = StyleSheet.create({
   switchLabel: { fontSize: tokens.fontSize.body, color: tokens.semantic.fg1, fontWeight: '500' },
   switchHint: { fontSize: tokens.fontSize.caption, color: tokens.semantic.fg3 },
   textArea: { height: 96, paddingTop: tokens.spacing.sp2, textAlignVertical: 'top' },
-  cta: { gap: tokens.spacing.sp2, marginTop: tokens.spacing.sp3 },
+  stickyCta: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    paddingHorizontal: tokens.spacing.sp4,
+    paddingTop: tokens.spacing.sp3,
+    paddingBottom: tokens.spacing.sp4,
+    backgroundColor: tokens.semantic.surface,
+    borderTopWidth: 1,
+    borderTopColor: tokens.semantic.line,
+  },
 });

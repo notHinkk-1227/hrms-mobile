@@ -111,20 +111,31 @@ export function ApplyAdvanceScreen({ navigation }: Props): React.JSX.Element {
             loading={loadingModes}
           />
         </View>
-
-        <View style={styles.cta}>
-          <Button fullWidth onPress={onSubmit} loading={submitting}>
-            Kirim Permohonan
-          </Button>
-        </View>
       </ScrollView>
+
+      <View style={styles.stickyCta}>
+        <Button fullWidth onPress={onSubmit} loading={submitting}>
+          Kirim Permohonan
+        </Button>
+      </View>
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  scroll: { gap: tokens.spacing.sp4 },
+  scroll: { gap: tokens.spacing.sp4, paddingBottom: 120 },
   form: { gap: tokens.spacing.sp3 },
   textArea: { height: 96, paddingTop: tokens.spacing.sp2, textAlignVertical: 'top' },
-  cta: { gap: tokens.spacing.sp2, marginTop: tokens.spacing.sp3 },
+  stickyCta: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    paddingHorizontal: tokens.spacing.sp4,
+    paddingTop: tokens.spacing.sp3,
+    paddingBottom: tokens.spacing.sp4,
+    backgroundColor: tokens.semantic.surface,
+    borderTopWidth: 1,
+    borderTopColor: tokens.semantic.line,
+  },
 });

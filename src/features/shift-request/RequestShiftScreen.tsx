@@ -94,19 +94,30 @@ export function RequestShiftScreen({ navigation }: Props): React.JSX.Element {
             hint="Kosongkan kalau perubahan permanen"
           />
         </View>
-
-        <View style={styles.cta}>
-          <Button fullWidth onPress={onSubmit} loading={submitting}>
-            Kirim Permohonan
-          </Button>
-        </View>
       </ScrollView>
+
+      <View style={styles.stickyCta}>
+        <Button fullWidth onPress={onSubmit} loading={submitting}>
+          Kirim Permohonan
+        </Button>
+      </View>
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  scroll: { gap: tokens.spacing.sp4 },
+  scroll: { gap: tokens.spacing.sp4, paddingBottom: 120 },
   form: { gap: tokens.spacing.sp3 },
-  cta: { gap: tokens.spacing.sp2, marginTop: tokens.spacing.sp3 },
+  stickyCta: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    paddingHorizontal: tokens.spacing.sp4,
+    paddingTop: tokens.spacing.sp3,
+    paddingBottom: tokens.spacing.sp4,
+    backgroundColor: tokens.semantic.surface,
+    borderTopWidth: 1,
+    borderTopColor: tokens.semantic.line,
+  },
 });

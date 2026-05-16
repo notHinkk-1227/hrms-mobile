@@ -174,19 +174,19 @@ export function ApplyExpenseScreen({ navigation }: Props): React.JSX.Element {
           <Text style={styles.totalLabel}>TOTAL KLAIM</Text>
           <Text style={styles.totalValue}>Rp {formatRp(total)}</Text>
         </View>
-
-        <View style={styles.cta}>
-          <Button fullWidth onPress={onSubmit} loading={submitting}>
-            Kirim Klaim
-          </Button>
-        </View>
       </ScrollView>
+
+      <View style={styles.stickyCta}>
+        <Button fullWidth onPress={onSubmit} loading={submitting}>
+          Kirim Klaim
+        </Button>
+      </View>
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  scroll: { gap: tokens.spacing.sp4, paddingBottom: tokens.spacing.sp5 },
+  scroll: { gap: tokens.spacing.sp4, paddingBottom: 120 },
   itemList: { gap: tokens.spacing.sp3 },
   itemCard: {
     padding: tokens.spacing.sp3,
@@ -234,5 +234,16 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     fontFamily: tokens.font.mono,
   },
-  cta: { gap: tokens.spacing.sp2 },
+  stickyCta: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    paddingHorizontal: tokens.spacing.sp4,
+    paddingTop: tokens.spacing.sp3,
+    paddingBottom: tokens.spacing.sp4,
+    backgroundColor: tokens.semantic.surface,
+    borderTopWidth: 1,
+    borderTopColor: tokens.semantic.line,
+  },
 });

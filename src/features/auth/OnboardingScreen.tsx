@@ -4,6 +4,11 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Button } from '@shared/components/Button';
 import { Screen } from '@shared/components/Screen';
 import { tokens } from '@shared/theme/tokens';
+import {
+  DashboardIllustration,
+  DigitalFormIllustration,
+  GpsAttendanceIllustration,
+} from './illustrations';
 import { useAuthStore } from './store';
 import type { AuthStackParamList } from '@app/navigation/types';
 
@@ -13,19 +18,19 @@ const { width } = Dimensions.get('window');
 
 const SLIDES = [
   {
-    title: 'Absen dengan GPS',
-    body: 'Verifikasi lokasi otomatis saat absen, tanpa fingerprint rusak atau foto WhatsApp.',
-    accent: tokens.semantic.brand,
+    title: 'Absen cukup dari HP',
+    body: 'Verifikasi lokasi GPS otomatis. Tidak perlu fingerprint rusak atau foto WhatsApp ke supervisor.',
+    Illustration: GpsAttendanceIllustration,
   },
   {
-    title: 'Form Digital',
-    body: 'Ajukan cuti, klaim reimbursement, kasbon, langsung dari HP. Approval cepat.',
-    accent: tokens.color.green500,
+    title: 'Cuti, klaim, kasbon',
+    body: 'Ajukan semua permohonan langsung dari HP. Atasan dapat notifikasi instan.',
+    Illustration: DigitalFormIllustration,
   },
   {
-    title: 'Dashboard di Genggaman',
-    body: 'Lihat slip gaji, sisa cuti, riwayat absen kapan saja. Tidak perlu tanya HR.',
-    accent: tokens.color.yellow400,
+    title: 'Approve permohonan tim',
+    body: 'Setujui cuti, klaim, atau kasbon karyawan di mana saja — tap tap selesai.',
+    Illustration: DashboardIllustration,
   },
 ] as const;
 
@@ -67,15 +72,16 @@ export function OnboardingScreen({ navigation }: Props): React.JSX.Element {
         scrollEventThrottle={16}
         style={styles.scroll}
       >
-        {SLIDES.map((slide) => (
-          <View key={slide.title} style={[styles.slide, { width }]}>
-            <View style={[styles.illustration, { backgroundColor: slide.accent }]}>
-              <Text style={styles.illustrationText}>{slide.title.split(' ')[0]}</Text>
+        {SLIDES.map((slide) => {
+          const Illustration = slide.Illustration;
+          return (
+            <View key={slide.title} style={[styles.slide, { width }]}>
+              <Illustration />
+              <Text style={styles.title}>{slide.title}</Text>
+              <Text style={styles.body}>{slide.body}</Text>
             </View>
-            <Text style={styles.title}>{slide.title}</Text>
-            <Text style={styles.body}>{slide.body}</Text>
-          </View>
-        ))}
+          );
+        })}
       </ScrollView>
       <View style={styles.dots}>
         {SLIDES.map((_, i) => (
@@ -101,18 +107,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: tokens.spacing.sp4,
     gap: tokens.spacing.sp4,
-  },
-  illustration: {
-    width: 200,
-    height: 200,
-    borderRadius: tokens.radius.xl,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  illustrationText: {
-    color: tokens.color.white,
-    fontSize: tokens.fontSize.h1,
-    fontWeight: '800',
   },
   title: {
     fontSize: tokens.fontSize.h1,
