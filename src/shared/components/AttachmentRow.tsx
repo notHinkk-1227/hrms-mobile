@@ -56,20 +56,20 @@ export function AttachmentRow({
     return (
       <View style={styles.attached}>
         {file.is_image ? (
-          <Image source={{ uri: file.file_url }} style={styles.thumb} />
+          <Image source={{ uri: file.file_url }} style={styles.thumbFilled} />
         ) : (
-          <View style={styles.thumb}>
-            <FileText size={24} color={tokens.semantic.fg3} />
+          <View style={styles.thumbFilled}>
+            <FileText size={20} color={tokens.color.blue700} />
           </View>
         )}
         <View style={styles.attachedText}>
           <Text style={styles.attachedName} numberOfLines={1}>
             {file.file_name}
           </Text>
-          <Text style={styles.attachedSize}>{(file.file_size / 1024).toFixed(0)} KB</Text>
+          <Text style={styles.attachedSize}>{(file.file_size / 1024).toFixed(0)} KB · terlampir</Text>
         </View>
         <Pressable onPress={onRemove} hitSlop={12}>
-          <Trash2 size={20} color={tokens.color.error} />
+          <Trash2 size={18} color={tokens.color.error} />
         </Pressable>
       </View>
     );
@@ -124,19 +124,19 @@ const styles = StyleSheet.create({
     gap: tokens.spacing.sp3,
     padding: tokens.spacing.sp2,
     borderRadius: tokens.radius.md,
-    backgroundColor: tokens.semantic.surface2,
+    backgroundColor: tokens.color.blue50,
     borderWidth: 1,
-    borderColor: tokens.semantic.line,
+    borderColor: tokens.color.blue100,
   },
-  thumb: {
-    width: 48,
-    height: 48,
+  thumbFilled: {
+    width: 44,
+    height: 44,
     borderRadius: tokens.radius.sm,
-    backgroundColor: tokens.color.ink100,
+    backgroundColor: tokens.color.blue100,
     alignItems: 'center',
     justifyContent: 'center',
   },
   attachedText: { flex: 1 },
-  attachedName: { fontSize: tokens.fontSize.body, color: tokens.semantic.fg1, fontWeight: '500' },
-  attachedSize: { fontSize: tokens.fontSize.caption, color: tokens.semantic.fg3 },
+  attachedName: { fontSize: 13, color: tokens.semantic.fg1, fontWeight: '600' },
+  attachedSize: { fontSize: 11, color: tokens.color.blue700, fontFamily: tokens.font.mono, marginTop: 2 },
 });
