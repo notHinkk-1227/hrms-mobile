@@ -1,4 +1,5 @@
 import type { NavigatorScreenParams } from '@react-navigation/native';
+import type { LogType, ClockInResult } from '@domain/entities/checkin';
 
 export type AuthStackParamList = {
   Onboarding: undefined;
@@ -7,8 +8,14 @@ export type AuthStackParamList = {
   Privacy: undefined;
 };
 
+export type HomeStackParamList = {
+  HomeMain: undefined;
+  ClockInConfirm: { logType: LogType };
+  ClockInSuccess: { result: ClockInResult; logType: LogType };
+};
+
 export type MainTabsParamList = {
-  Home: undefined;
+  Home: NavigatorScreenParams<HomeStackParamList>;
   MyRequests: undefined;
   TeamRequests: undefined;
   Profile: undefined;
