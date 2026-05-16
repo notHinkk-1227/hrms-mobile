@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { Dimensions, ScrollView, StyleSheet, Text, View } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Button } from '@shared/components/Button';
@@ -31,6 +31,7 @@ const SLIDES = [
 
 export function OnboardingScreen({ navigation }: Props): React.JSX.Element {
   const [index, setIndex] = useState(0);
+  const scrollRef = useRef<ScrollView>(null);
   const markOnboardingSeen = useAuthStore((s) => s.markOnboardingSeen);
 
   const onScroll = (e: { nativeEvent: { contentOffset: { x: number } } }) => {
@@ -40,14 +41,25 @@ export function OnboardingScreen({ navigation }: Props): React.JSX.Element {
     }
   };
 
-  const onContinue = () => {
+  const finish = () => {
     markOnboardingSeen();
     navigation.replace('TenantCode');
+  };
+
+  const onContinue = () => {
+    if (index < SLIDES.length - 1) {
+      const next = index + 1;
+      scrollRef.current?.scrollTo({ x: width * next, animated: true });
+      setIndex(next);
+    } else {
+      finish();
+    }
   };
 
   return (
     <Screen padded={false}>
       <ScrollView
+        ref={scrollRef}
         horizontal
         pagingEnabled
         showsHorizontalScrollIndicator={false}
@@ -74,7 +86,7 @@ export function OnboardingScreen({ navigation }: Props): React.JSX.Element {
         <Button fullWidth onPress={onContinue}>
           {index === SLIDES.length - 1 ? 'Mulai' : 'Lanjut'}
         </Button>
-        <Button variant="ghost" fullWidth onPress={onContinue}>
+        <Button variant="ghost" fullWidth onPress={finish}>
           Lewati
         </Button>
       </View>
