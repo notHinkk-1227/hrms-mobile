@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import {
-  ActivityIndicator,
   FlatList,
   Pressable,
   RefreshControl,
@@ -11,8 +10,10 @@ import {
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NavigationProp } from '@react-navigation/native';
-import { Plus } from 'lucide-react-native';
+import { Inbox, Plus } from 'lucide-react-native';
+import { EmptyState } from '@shared/components/EmptyState';
 import { Screen } from '@shared/components/Screen';
+import { SkeletonList } from '@shared/components/Skeleton';
 import { StatusBadge } from '@shared/components/StatusBadge';
 import { tokens } from '@shared/theme/tokens';
 import { useAuthStore } from '@features/auth/store';
@@ -118,8 +119,8 @@ export function MyRequestsScreen(): React.JSX.Element {
       </View>
 
       {loading ? (
-        <View style={styles.center}>
-          <ActivityIndicator color={tokens.semantic.brand} />
+        <View style={styles.skeletonWrap}>
+          <SkeletonList count={4} />
         </View>
       ) : error ? (
         <View style={styles.center}>
@@ -177,12 +178,11 @@ export function MyRequestsScreen(): React.JSX.Element {
 
 const ListSep = () => <View style={styles.sep} />;
 const EmptyList = () => (
-  <View style={styles.empty}>
-    <Text style={styles.emptyTitle}>Belum ada permohonan</Text>
-    <Text style={styles.emptyBody}>
-      Buat permohonan baru dengan tombol + di atas.
-    </Text>
-  </View>
+  <EmptyState
+    icon={<Inbox size={32} color={tokens.color.ink300} />}
+    title="Belum ada permohonan"
+    subtitle="Buat permohonan baru dengan tombol + di atas atau FAB di bawah."
+  />
 );
 
 const styles = StyleSheet.create({
@@ -249,9 +249,7 @@ const styles = StyleSheet.create({
   },
   rowId: { fontSize: tokens.fontSize.caption, color: tokens.color.ink300, fontFamily: tokens.font.mono },
   sep: { height: tokens.spacing.sp2 },
+  skeletonWrap: { paddingVertical: tokens.spacing.sp2 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: tokens.spacing.sp4 },
   errorText: { color: tokens.color.error },
-  empty: { padding: tokens.spacing.sp5, alignItems: 'center', gap: tokens.spacing.sp2 },
-  emptyTitle: { fontSize: tokens.fontSize.h4, fontWeight: '700', color: tokens.semantic.fg1 },
-  emptyBody: { fontSize: tokens.fontSize.small, color: tokens.semantic.fg3, textAlign: 'center' },
 });

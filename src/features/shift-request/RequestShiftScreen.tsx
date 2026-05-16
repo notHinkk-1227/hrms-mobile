@@ -4,6 +4,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Button } from '@shared/components/Button';
 import { Screen } from '@shared/components/Screen';
 import { Select } from '@shared/components/Select';
+import { StickyCta } from '@shared/components/StickyCta';
 import { DateField } from '@shared/components/DateField';
 import { FormHeader } from '@features/forms/FormHeader';
 import { tokens } from '@shared/theme/tokens';
@@ -96,11 +97,11 @@ export function RequestShiftScreen({ navigation }: Props): React.JSX.Element {
         </View>
       </ScrollView>
 
-      <View style={styles.stickyCta}>
+      <StickyCta>
         <Button fullWidth onPress={onSubmit} loading={submitting}>
           Kirim Permohonan
         </Button>
-      </View>
+      </StickyCta>
     </Screen>
   );
 }
@@ -108,16 +109,4 @@ export function RequestShiftScreen({ navigation }: Props): React.JSX.Element {
 const styles = StyleSheet.create({
   scroll: { gap: tokens.spacing.sp4, paddingBottom: 120 },
   form: { gap: tokens.spacing.sp3 },
-  stickyCta: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    paddingHorizontal: tokens.spacing.sp4,
-    paddingTop: tokens.spacing.sp3,
-    paddingBottom: tokens.spacing.sp4,
-    backgroundColor: tokens.semantic.surface,
-    borderTopWidth: 1,
-    borderTopColor: tokens.semantic.line,
-  },
 });

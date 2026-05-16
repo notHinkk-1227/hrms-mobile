@@ -1,8 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { ChevronRight } from 'lucide-react-native';
+import { ChevronRight, FileText } from 'lucide-react-native';
+import { EmptyState } from '@shared/components/EmptyState';
 import { Screen } from '@shared/components/Screen';
+import { SkeletonList } from '@shared/components/Skeleton';
 import { StatusBadge } from '@shared/components/StatusBadge';
 import { FormHeader } from '@features/forms/FormHeader';
 import { tokens } from '@shared/theme/tokens';
@@ -44,8 +46,8 @@ export function SalarySlipListScreen({ navigation }: Props): React.JSX.Element {
     <Screen>
       <FormHeader title="Slip Gaji" subtitle="12 bulan terakhir" onBack={() => navigation.goBack()} />
       {loading ? (
-        <View style={styles.center}>
-          <ActivityIndicator color={tokens.semantic.brand} />
+        <View style={styles.skeletonWrap}>
+          <SkeletonList count={3} />
         </View>
       ) : error ? (
         <View style={styles.center}>
@@ -88,10 +90,11 @@ export function SalarySlipListScreen({ navigation }: Props): React.JSX.Element {
 
 const ListSep = () => <View style={styles.sep} />;
 const EmptyList = () => (
-  <View style={styles.empty}>
-    <Text style={styles.emptyTitle}>Belum ada slip gaji</Text>
-    <Text style={styles.emptyBody}>Slip akan muncul setelah HR memproses gaji.</Text>
-  </View>
+  <EmptyState
+    icon={<FileText size={32} color={tokens.color.ink300} />}
+    title="Belum ada slip gaji"
+    subtitle="Slip akan muncul setelah HR memproses gaji bulan ini."
+  />
 );
 
 const styles = StyleSheet.create({
@@ -112,9 +115,7 @@ const styles = StyleSheet.create({
   rowAmount: { fontSize: tokens.fontSize.body, color: tokens.color.green700, fontWeight: '700' },
   rowAmountMuted: { fontSize: tokens.fontSize.small, color: tokens.semantic.fg3 },
   sep: { height: tokens.spacing.sp2 },
+  skeletonWrap: { paddingVertical: tokens.spacing.sp2 },
   center: { padding: tokens.spacing.sp5, alignItems: 'center' },
   errorText: { color: tokens.color.error },
-  empty: { padding: tokens.spacing.sp5, alignItems: 'center', gap: tokens.spacing.sp2 },
-  emptyTitle: { fontSize: tokens.fontSize.h4, fontWeight: '700', color: tokens.semantic.fg1 },
-  emptyBody: { fontSize: tokens.fontSize.small, color: tokens.semantic.fg3, textAlign: 'center' },
 });

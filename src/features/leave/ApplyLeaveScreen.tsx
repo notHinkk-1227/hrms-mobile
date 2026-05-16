@@ -8,6 +8,7 @@ import { Button } from '@shared/components/Button';
 import { NoticeCard } from '@shared/components/NoticeCard';
 import { Screen } from '@shared/components/Screen';
 import { Select } from '@shared/components/Select';
+import { StickyCta } from '@shared/components/StickyCta';
 import { DateField } from '@shared/components/DateField';
 import { TextField } from '@shared/components/TextField';
 import { FormHeader } from '@features/forms/FormHeader';
@@ -199,11 +200,11 @@ export function ApplyLeaveScreen({ navigation }: Props): React.JSX.Element {
         </View>
       </ScrollView>
 
-      <View style={styles.stickyCta}>
+      <StickyCta>
         <Button fullWidth onPress={onSubmit} loading={submitting}>
           Kirim Permohonan
         </Button>
-      </View>
+      </StickyCta>
     </Screen>
   );
 }
@@ -229,16 +230,4 @@ const styles = StyleSheet.create({
   switchLabel: { fontSize: tokens.fontSize.body, color: tokens.semantic.fg1, fontWeight: '500' },
   switchHint: { fontSize: tokens.fontSize.caption, color: tokens.semantic.fg3 },
   textArea: { height: 96, paddingTop: tokens.spacing.sp2, textAlignVertical: 'top' },
-  stickyCta: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    paddingHorizontal: tokens.spacing.sp4,
-    paddingTop: tokens.spacing.sp3,
-    paddingBottom: tokens.spacing.sp4,
-    backgroundColor: tokens.semantic.surface,
-    borderTopWidth: 1,
-    borderTopColor: tokens.semantic.line,
-  },
 });
