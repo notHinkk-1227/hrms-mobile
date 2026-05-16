@@ -4,13 +4,16 @@ import { StatusBar, StyleSheet } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { RootNavigator } from '@app/navigation/RootNavigator';
+import { ToastProvider } from '@shared/components/Toast';
 
 function App(): React.JSX.Element {
   return (
     <GestureHandlerRootView style={styles.root}>
       <SafeAreaProvider>
-        <StatusBar barStyle="dark-content" backgroundColor="#F8FAFC" />
-        <RootNavigator />
+        <ToastProvider>
+          <StatusBar barStyle="dark-content" backgroundColor="#F8FAFC" />
+          <RootNavigator />
+        </ToastProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );

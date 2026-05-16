@@ -1,97 +1,140 @@
-This is a new [**React Native**](https://reactnative.dev) project, bootstrapped using [`@react-native-community/cli`](https://github.com/react-native-community/cli).
+# Sopwer HRMS Mobile
 
-# Getting Started
+Aplikasi React Native untuk karyawan klien Sopwer — replikasi scope Frappe HR Mobile dengan tambahan GPS verification berlapis (Phase 2 backend) dan tenant routing via `sopwer_controller`.
 
-> **Note**: Make sure you have completed the [Set Up Your Environment](https://reactnative.dev/docs/set-up-your-environment) guide before proceeding.
+**Status:** MVP Phase 1-5 — pakai Frappe HR REST bawaan, belum integrasi `sopwer_hrms` backend custom.
 
-## Step 1: Start Metro
+## Stack
+- React Native 0.80 (CLI, **bukan Expo**)
+- TypeScript strict mode
+- Zustand (state) + MMKV (storage, encrypted)
+- axios + react-navigation v6
+- react-hook-form + zod (forms)
+- date-fns, lucide-react-native
+- react-native-geolocation-service (GPS)
+- @react-native-community/datetimepicker + @react-native-documents/picker (forms)
+- react-native-reanimated 3.19 (LOCKED — 4.x butuh RN 0.81+)
 
-First, you will need to run **Metro**, the JavaScript build tool for React Native.
+## Folder Structure (clean architecture)
+```
+src/
+├── app/                 # navigation root (AuthStack, MainStack, MainTabs, HomeStack)
+├── config/              # env override (controllerUrl)
+├── domain/              # entities + ports + usecases — pure TS, no RN
+├── infrastructure/      # api/ + location/ + storage/ + device/ — RN deps OK
+├── features/            # 13 feature modules: auth, home, checkin, leave, expense,
+│                        # advance, attendance-request, shift-request, my-requests,
+│                        # team-requests, salary-slip, attendance, profile, forms
+└── shared/              # components/ + theme/ + utils/ — stateless, reusable
+```
 
-To start the Metro dev server, run the following command from the root of your React Native project:
+## Development
 
-```sh
-# Using npm
-npm start
+### Prerequisites
+- Node.js >= 18
+- Yarn 1.22+
+- JDK 17 (Zulu / Temurin)
+- Android Studio + SDK Platform 35 + NDK 27.1.12297006
+- ANDROID_HOME env
 
-# OR using Yarn
+### First-time setup
+```bash
+yarn install
+```
+
+### Run on emulator/device (debug)
+```bash
+# Terminal 1 — Metro bundler
 yarn start
-```
 
-## Step 2: Build and run your app
-
-With Metro running, open a new terminal window/pane from the root of your React Native project, and use one of the following commands to build and run your Android or iOS app:
-
-### Android
-
-```sh
-# Using npm
-npm run android
-
-# OR using Yarn
+# Terminal 2 — install + run
 yarn android
+# Restart app setelah di-install:
+adb reverse tcp:8081 tcp:8081
+adb shell am force-stop com.sopwer_hrms_mobile && adb shell am start -n com.sopwer_hrms_mobile/.MainActivity
 ```
 
-### iOS
-
-For iOS, remember to install CocoaPods dependencies (this only needs to be run on first clone or after updating native deps).
-
-The first time you create a new project, run the Ruby bundler to install CocoaPods itself:
-
-```sh
-bundle install
+### Type-check + lint
+```bash
+yarn tsc --noEmit
+yarn lint
 ```
 
-Then, and every time you update your native dependencies, run:
+### Build release APK (signed)
+Prerequisite: `android/keystore.properties` ada (lokal, gitignored).
 
-```sh
-bundle exec pod install
+```bash
+cd android
+./gradlew assembleRelease
+# Output: android/app/build/outputs/apk/release/app-release.apk (~74MB)
+# Copy ke: release/sopwer-hrms-mobile-vX.Y.Z.apk
 ```
 
-For more information, please visit [CocoaPods Getting Started guide](https://guides.cocoapods.org/using/getting-started.html).
+Build pertama: 12-15 menit (gradle download + native compile).
+Build incremental setelah perubahan TS only: ~1-3 menit.
+Build setelah perubahan native deps (yarn add native module): 5-10 menit.
 
-```sh
-# Using npm
-npm run ios
+### Release signing
+- Keystore: `android/app/sopwer-hrms-release.keystore` (gitignored — JANGAN commit)
+- Config: `android/keystore.properties` (gitignored)
+- Backup keystore + password ke password manager / encrypted vault — **tidak bisa di-recover kalau hilang**.
 
-# OR using Yarn
-yarn ios
+Generate keystore baru (kalau lost):
+```bash
+keytool -genkeypair -alias sopwer-hrms -keyalg RSA -keysize 2048 -validity 10000 \
+  -keystore android/app/sopwer-hrms-release.keystore \
+  -dname "CN=Sopwer HRMS, OU=Mobile, O=PT Sopwer Teknologi Indonesia, L=Jakarta, ST=DKI Jakarta, C=ID"
 ```
 
-If everything is set up correctly, you should see your new app running in the Android Emulator, iOS Simulator, or your connected device.
+Tulis `android/keystore.properties`:
+```
+RELEASE_STORE_FILE=sopwer-hrms-release.keystore
+RELEASE_KEY_ALIAS=sopwer-hrms
+RELEASE_STORE_PASSWORD=<password>
+RELEASE_KEY_PASSWORD=<password>
+```
 
-This is one way to run your app — you can also build it directly from Android Studio or Xcode.
+## Endpoint Backend
 
-## Step 3: Modify your app
+### Tenant resolution (controller)
+- `https://cloud.sopwer.net/api/method/sopwer_controller.api.resolve_tenant_code`
+- Override via `src/config/env.ts` `setControllerUrl()` kalau perlu test ke server lain.
 
-Now that you have successfully run the app, let's make changes!
+### Tenant API (per-klien Frappe instance)
+Semua endpoint di MVP saat ini pakai Frappe HR bawaan:
+- `/api/method/login` (session-cookie auth)
+- `/api/method/logout`
+- `/api/resource/Employee?filters=[["user_id","=",user]]`
+- `/api/resource/Employee Checkin` POST {employee, log_type, time, latitude, longitude, device_id}
+- `/api/resource/Leave Application`, `Expense Claim`, `Employee Advance`, `Attendance Request`, `Shift Request`
+- `/api/resource/Salary Slip`, `Attendance`, `Shift Assignment`, `Shift Location`, `Shift Type`, `Leave Type`, `Mode of Payment`, `Expense Claim Type`
+- `/api/method/hrms.hr.doctype.leave_application.leave_application.get_leave_details` (leave balance)
+- `/api/method/upload_file` (multipart)
 
-Open `App.tsx` in your text editor of choice and make some changes. When you save, your app will automatically update and reflect these changes — this is powered by [Fast Refresh](https://reactnative.dev/docs/fast-refresh).
+## Build pipeline gotchas
 
-When you want to forcefully reload, for example to reset the state of your app, you can perform a full reload:
+### NDK 27 + clang LTO crash
+NDK 27 hapus `gold` linker, tapi CMake masih emit `-fuse-ld=gold` di IPO/LTO check.
+**Fix di `android/app/build.gradle`:** `arguments "-DCMAKE_INTERPROCEDURAL_OPTIMIZATION=OFF"` di externalNativeBuild.
 
-- **Android**: Press the <kbd>R</kbd> key twice or select **"Reload"** from the **Dev Menu**, accessed via <kbd>Ctrl</kbd> + <kbd>M</kbd> (Windows/Linux) or <kbd>Cmd ⌘</kbd> + <kbd>M</kbd> (macOS).
-- **iOS**: Press <kbd>R</kbd> in iOS Simulator.
+### Codegen JNI dir missing setelah install native module baru
+RN 0.80 autolinking generate codegen artifacts per-variant. Setelah `yarn add` native module, sebelum `assembleRelease` jalankan dulu:
+```bash
+cd android
+./gradlew :<module-name>:assembleRelease
+```
+Atau `./gradlew generateCodegenArtifactsFromSchema`.
 
-## Congratulations! :tada:
+### ABI filter — APK universal 74MB
+`android/app/build.gradle` filter `arm64-v8a + armeabi-v7a` (semua HP Android sejak 2017). x86/x86_64 hanya untuk emulator.
+- Untuk emulator x86, hapus filter temporary saat dev.
+- Untuk APK final per-ABI: tambah `splits.abi` block (Phase 6 work).
 
-You've successfully run and modified your React Native App. :partying_face:
+### Reanimated 4.x vs RN 0.80
+Reanimated 4.x butuh RN 0.81+. Pinned di 3.19.5 untuk kompat RN 0.80. Saat upgrade RN ke 0.81+, bisa upgrade reanimated ke 4.x.
 
-### Now what?
-
-- If you want to add this new React Native code to an existing application, check out the [Integration guide](https://reactnative.dev/docs/integration-with-existing-apps).
-- If you're curious to learn more about React Native, check out the [docs](https://reactnative.dev/docs/getting-started).
-
-# Troubleshooting
-
-If you're having issues getting the above steps to work, see the [Troubleshooting](https://reactnative.dev/docs/troubleshooting) page.
-
-# Learn More
-
-To learn more about React Native, take a look at the following resources:
-
-- [React Native Website](https://reactnative.dev) - learn more about React Native.
-- [Getting Started](https://reactnative.dev/docs/environment-setup) - an **overview** of React Native and how setup your environment.
-- [Learn the Basics](https://reactnative.dev/docs/getting-started) - a **guided tour** of the React Native **basics**.
-- [Blog](https://reactnative.dev/blog) - read the latest official React Native **Blog** posts.
-- [`@facebook/react-native`](https://github.com/facebook/react-native) - the Open Source; GitHub **repository** for React Native.
+## Plan & PRD
+- Master plan: `~/.claude/plans/jadi-gini-kita-akan-curious-elephant.md`
+- PRD: `/development/hrms/PRD.md`
+- Design tokens: `/development/hrms/DESIGN_BRIEF.md`
+- Coding rules: `/development/hrms/CLAUDE.md`

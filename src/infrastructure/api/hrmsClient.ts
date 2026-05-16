@@ -101,6 +101,16 @@ async function get<T>(path: string, params?: Record<string, unknown>): Promise<T
   }
 }
 
+async function put<T>(path: string, body: unknown): Promise<T> {
+  try {
+    const client = createTenantClient();
+    const response = await client.put(path, body);
+    return response.data as T;
+  } catch (e) {
+    throw toApiError(e);
+  }
+}
+
 async function post<T>(path: string, body: unknown): Promise<T> {
   try {
     const client = createTenantClient();
@@ -212,6 +222,281 @@ export const shiftRequestApi = {
       status: 'Draft',
     });
     return res.data;
+  },
+};
+
+// ============ List + Detail + Approval ============
+
+export type RequestStatus = 'Open' | 'Approved' | 'Rejected' | 'Cancelled' | 'Draft';
+
+export interface RequestSummary {
+  doctype: string;
+  name: string;
+  employee: string;
+  employee_name: string | null;
+  status: RequestStatus | string;
+  creation: string;
+  modified: string;
+  /** Human-readable summary line per doctype, e.g. "12-15 Apr · Cuti Tahunan" */
+  primary: string;
+  /** Optional secondary line, e.g. "Rp 250.000" untuk Expense */
+  secondary?: string;
+}
+
+const APPROVER_FIELD: Record<string, string> = {
+  'Leave Application': 'leave_approver',
+  'Expense Claim': 'expense_approver',
+  'Employee Advance': 'advance_approver',
+  'Attendance Request': '_assign',
+  'Shift Request': 'approver',
+};
+
+function makePrimary(doctype: string, doc: Record<string, unknown>): string {
+  switch (doctype) {
+    case 'Leave Application':
+      return `${doc.from_date} → ${doc.to_date} · ${doc.leave_type}`;
+    case 'Expense Claim': {
+      const amount = (doc.total_claimed_amount as number | undefined) ?? 0;
+      return `Rp ${amount.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.')}`;
+    }
+    case 'Employee Advance': {
+      const amount = (doc.advance_amount as number | undefined) ?? 0;
+      return `Rp ${amount.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.')}`;
+    }
+    case 'Attendance Request':
+      return `${doc.from_date} → ${doc.to_date} · ${doc.reason}`;
+    case 'Shift Request':
+      return `${doc.from_date}${doc.to_date ? ` → ${doc.to_date}` : ''} · ${doc.shift_type}`;
+    default:
+      return String(doc.name);
+  }
+}
+
+function makeSecondary(doctype: string, doc: Record<string, unknown>): string | undefined {
+  switch (doctype) {
+    case 'Leave Application':
+      return doc.description ? String(doc.description).slice(0, 80) : undefined;
+    case 'Expense Claim':
+      return doc.posting_date ? `Tgl ${doc.posting_date}` : undefined;
+    case 'Employee Advance':
+      return doc.purpose ? String(doc.purpose).slice(0, 80) : undefined;
+    case 'Attendance Request':
+      return doc.explanation ? String(doc.explanation).slice(0, 80) : undefined;
+    case 'Shift Request':
+      return undefined;
+    default:
+      return undefined;
+  }
+}
+
+const LIST_FIELDS: Record<string, string[]> = {
+  'Leave Application': [
+    'name',
+    'employee',
+    'employee_name',
+    'leave_type',
+    'from_date',
+    'to_date',
+    'description',
+    'status',
+    'creation',
+    'modified',
+  ],
+  'Expense Claim': [
+    'name',
+    'employee',
+    'employee_name',
+    'posting_date',
+    'total_claimed_amount',
+    'approval_status',
+    'status',
+    'creation',
+    'modified',
+  ],
+  'Employee Advance': [
+    'name',
+    'employee',
+    'employee_name',
+    'posting_date',
+    'advance_amount',
+    'purpose',
+    'status',
+    'creation',
+    'modified',
+  ],
+  'Attendance Request': [
+    'name',
+    'employee',
+    'employee_name',
+    'from_date',
+    'to_date',
+    'reason',
+    'explanation',
+    'status',
+    'creation',
+    'modified',
+  ],
+  'Shift Request': [
+    'name',
+    'employee',
+    'employee_name',
+    'from_date',
+    'to_date',
+    'shift_type',
+    'status',
+    'creation',
+    'modified',
+  ],
+};
+
+export async function listByDoctype(
+  doctype: string,
+  filters: Array<[string, string, unknown]>,
+  limit = 100,
+): Promise<RequestSummary[]> {
+  const fields = LIST_FIELDS[doctype] ?? ['name', 'employee', 'employee_name', 'status', 'creation', 'modified'];
+  const res = await get<{ data: Array<Record<string, unknown>> }>(
+    `/api/resource/${encodeURIComponent(doctype)}`,
+    {
+      filters: JSON.stringify(filters),
+      fields: JSON.stringify(fields),
+      order_by: 'creation desc',
+      limit_page_length: limit,
+    },
+  );
+  const rows = res.data ?? [];
+  return rows.map((doc) => {
+    // For Expense Claim, prefer approval_status as the display status
+    const statusValue =
+      doctype === 'Expense Claim' && doc.approval_status
+        ? (doc.approval_status as string)
+        : (doc.status as string) ?? 'Open';
+    return {
+      doctype,
+      name: String(doc.name),
+      employee: String(doc.employee),
+      employee_name: (doc.employee_name as string) ?? null,
+      status: statusValue,
+      creation: String(doc.creation),
+      modified: String(doc.modified),
+      primary: makePrimary(doctype, doc),
+      secondary: makeSecondary(doctype, doc),
+    };
+  });
+}
+
+export async function getDoctype<T = Record<string, unknown>>(doctype: string, name: string): Promise<T> {
+  const res = await get<{ data: T }>(`/api/resource/${encodeURIComponent(doctype)}/${encodeURIComponent(name)}`);
+  return res.data;
+}
+
+export async function updateDocStatus(
+  doctype: string,
+  name: string,
+  status: 'Approved' | 'Rejected',
+): Promise<void> {
+  // For Expense Claim, also set approval_status
+  const body: Record<string, unknown> = { status };
+  if (doctype === 'Expense Claim') {
+    body.approval_status = status;
+  }
+  await put<{ data: unknown }>(`/api/resource/${encodeURIComponent(doctype)}/${encodeURIComponent(name)}`, body);
+}
+
+export function getApproverField(doctype: string): string | undefined {
+  return APPROVER_FIELD[doctype];
+}
+
+// ============ Salary Slip ============
+
+export interface SalarySlipSummary {
+  name: string;
+  employee: string;
+  start_date: string;
+  end_date: string;
+  net_pay: number;
+  gross_pay: number;
+  status: 'Draft' | 'Submitted' | 'Cancelled';
+  posting_date: string;
+}
+
+export interface SalaryComponent {
+  salary_component: string;
+  amount: number;
+}
+
+export interface SalarySlipDetail extends SalarySlipSummary {
+  total_working_days: number;
+  payment_days: number;
+  earnings: SalaryComponent[];
+  deductions: SalaryComponent[];
+  total_deduction: number;
+}
+
+export const salarySlipApi = {
+  async list(employee: string, limit = 12): Promise<SalarySlipSummary[]> {
+    const res = await get<{ data: SalarySlipSummary[] }>('/api/resource/Salary Slip', {
+      filters: JSON.stringify([
+        ['employee', '=', employee],
+        ['docstatus', '!=', 2],
+      ]),
+      fields: JSON.stringify([
+        'name',
+        'employee',
+        'start_date',
+        'end_date',
+        'net_pay',
+        'gross_pay',
+        'status',
+        'posting_date',
+      ]),
+      order_by: 'start_date desc',
+      limit_page_length: limit,
+    });
+    return res.data ?? [];
+  },
+
+  async get(name: string): Promise<SalarySlipDetail> {
+    return getDoctype<SalarySlipDetail>('Salary Slip', name);
+  },
+};
+
+// ============ Attendance ============
+
+export interface AttendanceRecord {
+  name: string;
+  employee: string;
+  attendance_date: string;
+  status: 'Present' | 'Absent' | 'On Leave' | 'Half Day' | 'Work From Home' | string;
+  shift: string | null;
+  in_time: string | null;
+  out_time: string | null;
+}
+
+export const attendanceApi = {
+  async listByMonth(employee: string, year: number, month: number): Promise<AttendanceRecord[]> {
+    const pad = (n: number) => String(n).padStart(2, '0');
+    const from = `${year}-${pad(month)}-01`;
+    const lastDay = new Date(year, month, 0).getDate();
+    const to = `${year}-${pad(month)}-${pad(lastDay)}`;
+    const res = await get<{ data: AttendanceRecord[] }>('/api/resource/Attendance', {
+      filters: JSON.stringify([
+        ['employee', '=', employee],
+        ['attendance_date', 'between', [from, to]],
+      ]),
+      fields: JSON.stringify([
+        'name',
+        'employee',
+        'attendance_date',
+        'status',
+        'shift',
+        'in_time',
+        'out_time',
+      ]),
+      order_by: 'attendance_date desc',
+      limit_page_length: 50,
+    });
+    return res.data ?? [];
   },
 };
 

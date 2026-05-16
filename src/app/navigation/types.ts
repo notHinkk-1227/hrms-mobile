@@ -36,6 +36,11 @@ export type MainStackParamList = {
   RequestAttendance: undefined;
   RequestShift: undefined;
   FormSuccess: FormSuccessParams;
+  RequestDetail: { doctype: string; name: string };
+  TeamRequestDetail: { doctype: string; name: string };
+  SalarySlipList: undefined;
+  SalarySlipDetail: { name: string };
+  MyAttendance: undefined;
 };
 
 export type RootStackParamList = {
