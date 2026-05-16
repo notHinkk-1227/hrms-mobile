@@ -2,17 +2,34 @@ import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Screen } from '@shared/components/Screen';
-import { StatusBadge } from '@shared/components/StatusBadge';
+import { StatusBanner, BannerStatus } from '@shared/components/StatusBanner';
 import { StatusTimeline, TimelineStep } from '@shared/components/StatusTimeline';
 import { FormHeader } from '@features/forms/FormHeader';
 import { tokens } from '@shared/theme/tokens';
 import { getDoctype } from '@infrastructure/api/hrmsClient';
-import {
-  getDoctypeLabel,
-  getStatusLabel,
-  getStatusVariant,
-} from '@infrastructure/api/requestsClient';
+import { getDoctypeLabel } from '@infrastructure/api/requestsClient';
 import type { MainStackParamList } from '@app/navigation/types';
+
+function getBannerStatus(status: string): BannerStatus {
+  if (status === 'Approved' || status === 'Paid') return 'approved';
+  if (status === 'Rejected' || status === 'Cancelled') return 'rejected';
+  if (status === 'Draft') return 'draft';
+  return 'pending';
+}
+
+function getBannerCopy(status: BannerStatus, doctype: string): { title: string; subtitle: string } {
+  const docName = doctype.toLowerCase();
+  switch (status) {
+    case 'approved':
+      return { title: 'Permohonan disetujui', subtitle: `${docName} Anda sudah disetujui atasan` };
+    case 'rejected':
+      return { title: 'Permohonan ditolak', subtitle: `Cek alasan dari atasan di bawah` };
+    case 'draft':
+      return { title: 'Masih draft', subtitle: 'Belum dikirim untuk approval' };
+    default:
+      return { title: 'Menunggu persetujuan', subtitle: 'Atasan akan memproses dalam 1–2 hari' };
+  }
+}
 
 function buildTimeline(doc: Record<string, unknown>): TimelineStep[] {
   const status = String(doc.status ?? 'Open');
@@ -168,15 +185,11 @@ export function RequestDetailScreen({ navigation, route }: Props): React.JSX.Ele
           </View>
         ) : (
           <View style={styles.content}>
-            <View style={styles.statusRow}>
-              <StatusBadge
-                label={getStatusLabel(String(doc.status))}
-                variant={getStatusVariant(String(doc.status))}
-              />
-              <Text style={styles.creation}>
-                Dibuat {new Date(String(doc.creation)).toLocaleDateString('id-ID')}
-              </Text>
-            </View>
+            {(() => {
+              const bannerStatus = getBannerStatus(String(doc.status));
+              const copy = getBannerCopy(bannerStatus, getDoctypeLabel(doctype));
+              return <StatusBanner status={bannerStatus} title={copy.title} subtitle={copy.subtitle} />;
+            })()}
 
             <View style={styles.timelineBlock}>
               <Text style={styles.timelineHead}>Alur Persetujuan</Text>

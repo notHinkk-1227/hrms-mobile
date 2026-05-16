@@ -75,6 +75,13 @@ export function TeamRequestsScreen(): React.JSX.Element {
           return tab?.doctype === i.doctype;
         });
 
+  const statBoxes = [
+    { doctype: 'Leave Application', label: 'Cuti', color: tokens.color.blue700, bg: tokens.color.blue50 },
+    { doctype: 'Expense Claim', label: 'Klaim', color: tokens.color.green700, bg: tokens.color.green50 },
+    { doctype: 'Employee Advance', label: 'Kasbon', color: tokens.color.yellow700, bg: tokens.color.yellow50 },
+    { doctype: 'Shift Request', label: 'Shift', color: tokens.semantic.fg2, bg: tokens.color.ink50 },
+  ];
+
   return (
     <Screen bottomInset={false}>
       <View style={styles.header}>
@@ -82,6 +89,29 @@ export function TeamRequestsScreen(): React.JSX.Element {
         <Text style={styles.subtitle}>
           {items.length} permohonan menunggu persetujuan Anda
         </Text>
+
+        <View style={styles.statsBar}>
+          {statBoxes.map((box) => {
+            const count = items.filter((i) => i.doctype === box.doctype).length;
+            return (
+              <View
+                key={box.doctype}
+                style={[
+                  styles.statBox,
+                  { backgroundColor: count > 0 ? box.bg : tokens.semantic.surface2 },
+                ]}
+              >
+                <Text style={[styles.statValue, { color: count > 0 ? box.color : tokens.color.ink300 }]}>
+                  {count}
+                </Text>
+                <Text style={[styles.statLabel, { color: count > 0 ? box.color : tokens.semantic.fg3 }]}>
+                  {box.label}
+                </Text>
+              </View>
+            );
+          })}
+        </View>
+
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
@@ -179,6 +209,30 @@ const styles = StyleSheet.create({
   header: { gap: tokens.spacing.sp2, paddingBottom: tokens.spacing.sp3 },
   title: { fontSize: tokens.fontSize.h1, fontWeight: '800', color: tokens.semantic.fg1 },
   subtitle: { fontSize: tokens.fontSize.small, color: tokens.semantic.fg3 },
+  statsBar: {
+    flexDirection: 'row',
+    gap: 6,
+    marginTop: tokens.spacing.sp2,
+  },
+  statBox: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: tokens.spacing.sp2,
+    borderRadius: tokens.radius.md,
+    gap: 2,
+  },
+  statValue: {
+    fontFamily: tokens.font.display,
+    fontSize: 22,
+    fontWeight: '800',
+  },
+  statLabel: {
+    fontFamily: tokens.font.mono,
+    fontSize: 9,
+    fontWeight: '700',
+    letterSpacing: 0.6,
+    textTransform: 'uppercase',
+  },
   tabs: { flexDirection: 'row', gap: tokens.spacing.sp2, marginTop: tokens.spacing.sp2 },
   tab: {
     flexDirection: 'row',

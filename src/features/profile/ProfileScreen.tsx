@@ -3,12 +3,20 @@ import { Alert, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'rea
 import { useNavigation } from '@react-navigation/native';
 import type { NavigationProp } from '@react-navigation/native';
 import { Building2, Calendar, ChevronRight, FileText, LogOut, Mail, User as UserIcon } from 'lucide-react-native';
+import { Gradient } from '@shared/components/Gradient';
 import { Screen } from '@shared/components/Screen';
 import { tokens } from '@shared/theme/tokens';
 import { getHost } from '@shared/utils/url';
 import { useAuthStore } from '@features/auth/store';
 import { logoutFromFrappe } from '@features/auth/authService';
 import type { MainStackParamList } from '@app/navigation/types';
+
+function getInitials(name: string | undefined): string {
+  if (!name) return '?';
+  const parts = name.trim().split(/\s+/);
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+}
 
 export function ProfileScreen(): React.JSX.Element {
   const parent = useNavigation<NavigationProp<MainStackParamList>>();
@@ -34,23 +42,55 @@ export function ProfileScreen(): React.JSX.Element {
   };
 
   return (
-    <Screen bottomInset={false}>
+    <Screen bottomInset={false} padded={false}>
       <ScrollView contentContainerStyle={styles.scroll}>
-        <View style={styles.heroCard}>
-          {employee?.image ? (
-            <Image
-              source={{ uri: (tenantUrl ?? '') + employee.image }}
-              style={styles.avatar}
-            />
-          ) : (
-            <View style={styles.avatarFallback}>
-              <UserIcon size={40} color={tokens.color.white} />
+        <Gradient colors={[tokens.color.ink800, tokens.color.ink900]} angle={135} style={styles.heroCard}>
+          <View style={styles.heroContent}>
+            {employee?.image ? (
+              <Image
+                source={{ uri: (tenantUrl ?? '') + employee.image }}
+                style={styles.avatar}
+              />
+            ) : (
+              <Gradient
+                colors={[tokens.color.blue500, tokens.color.blue700]}
+                angle={135}
+                style={styles.avatarFallback}
+              >
+                <View style={styles.avatarContent}>
+                  {employee?.employee_name ? (
+                    <Text style={styles.avatarInitials}>{getInitials(employee.employee_name)}</Text>
+                  ) : (
+                    <UserIcon size={36} color={tokens.color.white} />
+                  )}
+                </View>
+              </Gradient>
+            )}
+            <Text style={styles.name}>{employee?.employee_name ?? 'Karyawan'}</Text>
+            <Text style={styles.designation}>{employee?.designation ?? '—'}</Text>
+            <View style={styles.tenantStrip}>
+              <Building2 size={11} color={tokens.color.white} />
+              <Text style={styles.tenantStripText}>{tenantName ?? '—'}</Text>
+              {tenantCode ? <Text style={styles.tenantStripCode}> · {tenantCode}</Text> : null}
             </View>
-          )}
-          <Text style={styles.name}>{employee?.employee_name ?? 'Karyawan'}</Text>
-          <Text style={styles.designation}>{employee?.designation ?? '—'}</Text>
-          <Text style={styles.empId}>{employee?.name ?? ''}</Text>
-        </View>
+            <View style={styles.statsGrid}>
+              <View style={styles.statBox}>
+                <Text style={[styles.statValue, { color: tokens.color.green300 }]}>9</Text>
+                <Text style={styles.statLabel}>Sisa cuti</Text>
+              </View>
+              <View style={[styles.statBox, styles.statBoxMid]}>
+                <Text style={[styles.statValue, { color: tokens.color.yellow300 }]}>4</Text>
+                <Text style={styles.statLabel}>Lembur (jam)</Text>
+              </View>
+              <View style={styles.statBox}>
+                <Text style={[styles.statValue, { color: tokens.color.blue300 }]}>98%</Text>
+                <Text style={styles.statLabel}>Kehadiran</Text>
+              </View>
+            </View>
+          </View>
+        </Gradient>
+
+        <View style={styles.body}>
 
         <View style={styles.menu}>
           <MenuRow
@@ -94,10 +134,8 @@ export function ProfileScreen(): React.JSX.Element {
         </View>
 
         <View style={styles.tenantCard}>
-          <Text style={styles.tenantLabel}>TENANT</Text>
-          <Text style={styles.tenantName}>{tenantName ?? '—'}</Text>
+          <Text style={styles.tenantLabel}>SERVER</Text>
           <Text style={styles.tenantHost}>{getHost(tenantUrl)}</Text>
-          {tenantCode ? <Text style={styles.tenantCode}>Kode: {tenantCode}</Text> : null}
         </View>
 
         <Pressable
@@ -109,6 +147,7 @@ export function ProfileScreen(): React.JSX.Element {
         </Pressable>
 
         <Text style={styles.version}>Sopwer HRMS v0.0.5 · Phase 4 MVP</Text>
+        </View>
       </ScrollView>
     </Screen>
   );
@@ -189,26 +228,82 @@ const infoStyles = StyleSheet.create({
 });
 
 const styles = StyleSheet.create({
-  scroll: { gap: tokens.spacing.sp4, paddingBottom: tokens.spacing.sp5 },
-  heroCard: {
+  scroll: { paddingBottom: tokens.spacing.sp5 },
+  heroCard: { paddingBottom: tokens.spacing.sp4 },
+  heroContent: {
     alignItems: 'center',
-    padding: tokens.spacing.sp4,
-    backgroundColor: tokens.semantic.brand,
-    borderRadius: tokens.radius.lg,
+    paddingTop: tokens.spacing.sp4,
+    paddingHorizontal: tokens.spacing.sp4,
     gap: 6,
   },
-  avatar: { width: 80, height: 80, borderRadius: tokens.radius.full },
+  avatar: {
+    width: 76,
+    height: 76,
+    borderRadius: 38,
+    borderWidth: 3,
+    borderColor: 'rgba(255,255,255,0.1)',
+  },
   avatarFallback: {
-    width: 80,
-    height: 80,
-    borderRadius: tokens.radius.full,
-    backgroundColor: tokens.color.blue700,
+    width: 76,
+    height: 76,
+    borderRadius: 38,
+    ...tokens.shadow.lg,
+  },
+  avatarContent: {
+    width: 76,
+    height: 76,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  name: { fontSize: tokens.fontSize.h2, fontWeight: '800', color: tokens.color.white, marginTop: tokens.spacing.sp2 },
-  designation: { fontSize: tokens.fontSize.body, color: tokens.color.blue100 },
-  empId: { fontSize: tokens.fontSize.small, color: tokens.color.blue100, fontFamily: tokens.font.mono },
+  avatarInitials: {
+    fontFamily: tokens.font.display,
+    fontSize: 28,
+    fontWeight: '800',
+    color: tokens.color.white,
+  },
+  name: {
+    fontFamily: tokens.font.display,
+    fontSize: 22,
+    fontWeight: '800',
+    color: tokens.color.white,
+    marginTop: tokens.spacing.sp3,
+    letterSpacing: -0.3,
+  },
+  designation: { fontSize: 13, color: 'rgba(255,255,255,0.7)' },
+  tenantStrip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 11,
+    paddingVertical: 6,
+    backgroundColor: 'rgba(255,255,255,0.12)',
+    borderRadius: tokens.radius.full,
+    marginTop: tokens.spacing.sp2,
+  },
+  tenantStripText: { fontSize: 11, color: tokens.color.white, fontWeight: '600' },
+  tenantStripCode: { fontSize: 11, color: 'rgba(255,255,255,0.7)', fontFamily: tokens.font.mono },
+  statsGrid: {
+    flexDirection: 'row',
+    marginTop: tokens.spacing.sp4,
+    width: '100%',
+    paddingHorizontal: tokens.spacing.sp2,
+  },
+  statBox: { flex: 1, alignItems: 'center', gap: 2 },
+  statBoxMid: {
+    borderLeftWidth: 1,
+    borderRightWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+  },
+  statValue: { fontFamily: tokens.font.display, fontSize: 24, fontWeight: '800' },
+  statLabel: {
+    fontFamily: tokens.font.mono,
+    fontSize: 9,
+    color: 'rgba(255,255,255,0.6)',
+    fontWeight: '700',
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
+  },
+  body: { paddingHorizontal: tokens.spacing.sp4, paddingTop: tokens.spacing.sp4, gap: tokens.spacing.sp4 },
   menu: {
     backgroundColor: tokens.semantic.surface,
     borderRadius: tokens.radius.lg,
@@ -231,19 +326,17 @@ const styles = StyleSheet.create({
   },
   tenantCard: {
     padding: tokens.spacing.sp3,
-    backgroundColor: tokens.color.blue50,
-    borderRadius: tokens.radius.lg,
+    backgroundColor: tokens.semantic.surface2,
+    borderRadius: tokens.radius.md,
     gap: 4,
   },
   tenantLabel: {
     fontSize: tokens.fontSize.eyebrow,
-    color: tokens.color.blue700,
+    color: tokens.semantic.fg3,
     fontWeight: '700',
     letterSpacing: 1,
   },
-  tenantName: { fontSize: tokens.fontSize.h4, fontWeight: '700', color: tokens.semantic.fg1 },
-  tenantHost: { fontSize: tokens.fontSize.small, color: tokens.semantic.fg3, fontFamily: tokens.font.mono },
-  tenantCode: { fontSize: tokens.fontSize.caption, color: tokens.semantic.fg3, fontFamily: tokens.font.mono },
+  tenantHost: { fontSize: tokens.fontSize.small, color: tokens.semantic.fg2, fontFamily: tokens.font.mono },
   logoutBtn: {
     flexDirection: 'row',
     alignItems: 'center',
