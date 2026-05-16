@@ -1,10 +1,13 @@
 import React, { useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Alert, StyleSheet, Text, View } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { Building2, Globe } from 'lucide-react-native';
 import { Button } from '@shared/components/Button';
 import { Screen } from '@shared/components/Screen';
 import { TextField } from '@shared/components/TextField';
 import { tokens } from '@shared/theme/tokens';
+import { getHost } from '@shared/utils/url';
+import { env } from '@config/env';
 import { login } from './authService';
 import { isLocked, recordFailedAttempt } from './loginGuard';
 import { useAuthStore } from './store';
@@ -22,8 +25,11 @@ export function LoginScreen({ navigation }: Props): React.JSX.Element {
   const [passwordError, setPasswordError] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [debugTaps, setDebugTaps] = useState(0);
 
   const tenantName = useAuthStore((s) => s.tenantName);
+  const tenantUrl = useAuthStore((s) => s.tenantUrl);
+  const tenantCode = useAuthStore((s) => s.tenantCode);
   const setLogin = useAuthStore((s) => s.login);
   const clearTenant = useAuthStore((s) => s.clearTenant);
   const privacyAccepted = useAuthStore((s) => s.privacyAccepted);
@@ -52,7 +58,7 @@ export function LoginScreen({ navigation }: Props): React.JSX.Element {
     setLoading(true);
     try {
       const result = await login(email.trim(), password);
-      // No api key/secret in Phase 1 — session cookie auth. Pass placeholders.
+      // Phase 1: session cookie auth (no api key/secret yet). Placeholder strings.
       setLogin({
         user: result.user,
         apiKey: '',
@@ -62,7 +68,7 @@ export function LoginScreen({ navigation }: Props): React.JSX.Element {
       if (!privacyAccepted) {
         navigation.replace('Privacy');
       }
-      // RootNavigator akan auto-switch ke MainTabs setelah isAuthenticated + privacyAccepted
+      // RootNavigator auto-switch ke MainTabs setelah isAuthenticated + privacyAccepted
     } catch (e) {
       const apiError = e as ApiError;
       if (apiError.kind === 'unauthorized') {
@@ -84,13 +90,45 @@ export function LoginScreen({ navigation }: Props): React.JSX.Element {
     }
   };
 
+  const onDebugTap = () => {
+    const next = debugTaps + 1;
+    setDebugTaps(next);
+    if (next >= 5) {
+      setDebugTaps(0);
+      Alert.alert(
+        'Debug Info',
+        `Controller URL:\n${env.controllerUrl}\n\n` +
+          `Tenant:\n• Name: ${tenantName ?? '—'}\n• Code: ${tenantCode ?? '—'}\n• Full URL: ${tenantUrl ?? '—'}\n• Host: ${getHost(tenantUrl)}\n\n` +
+          `Endpoint login:\n${tenantUrl ?? '?'}/api/method/login`,
+      );
+    }
+  };
+
   return (
     <Screen>
       <View style={styles.header}>
-        <Text style={styles.eyebrow}>LANGKAH 2 DARI 2</Text>
+        <Text style={styles.eyebrow} onPress={onDebugTap} suppressHighlighting>
+          LANGKAH 2 DARI 2
+        </Text>
         <Text style={styles.title}>Masuk</Text>
-        {tenantName ? <Text style={styles.tenant}>Perusahaan: {tenantName}</Text> : null}
       </View>
+
+      {tenantName ? (
+        <View style={styles.tenantCard}>
+          <View style={styles.tenantRow}>
+            <Building2 size={18} color={tokens.semantic.brand} />
+            <Text style={styles.tenantName}>{tenantName}</Text>
+          </View>
+          <View style={styles.tenantUrlRow}>
+            <Globe size={12} color={tokens.semantic.fg3} />
+            <Text style={styles.tenantHost} numberOfLines={1}>
+              {getHost(tenantUrl)}
+            </Text>
+            {tenantCode ? <Text style={styles.tenantCodeChip}>{tenantCode}</Text> : null}
+          </View>
+        </View>
+      ) : null}
+
       <View style={styles.form}>
         <TextField
           label="Email"
@@ -109,6 +147,7 @@ export function LoginScreen({ navigation }: Props): React.JSX.Element {
           onChangeText={setPassword}
           placeholder="Password Anda"
           secureTextEntry
+          toggleSecure
           autoCapitalize="none"
           autoCorrect={false}
           autoComplete="password"
@@ -127,7 +166,7 @@ export function LoginScreen({ navigation }: Props): React.JSX.Element {
 }
 
 const styles = StyleSheet.create({
-  header: { gap: tokens.spacing.sp2, marginBottom: tokens.spacing.sp5 },
+  header: { gap: tokens.spacing.sp2, marginBottom: tokens.spacing.sp4 },
   eyebrow: {
     fontSize: tokens.fontSize.eyebrow,
     color: tokens.semantic.fg3,
@@ -136,7 +175,47 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   title: { fontSize: tokens.fontSize.h1, fontWeight: '800', color: tokens.semantic.fg1 },
-  tenant: { fontSize: tokens.fontSize.body, color: tokens.semantic.fg3 },
+  tenantCard: {
+    padding: tokens.spacing.sp3,
+    borderRadius: tokens.radius.lg,
+    backgroundColor: tokens.color.blue50,
+    borderWidth: 1,
+    borderColor: tokens.color.blue100,
+    marginBottom: tokens.spacing.sp4,
+    gap: 6,
+  },
+  tenantRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: tokens.spacing.sp2,
+  },
+  tenantName: {
+    fontSize: tokens.fontSize.h4,
+    fontWeight: '700',
+    color: tokens.semantic.fg1,
+    flex: 1,
+  },
+  tenantUrlRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: tokens.spacing.sp1,
+  },
+  tenantHost: {
+    fontSize: tokens.fontSize.small,
+    color: tokens.semantic.fg3,
+    fontFamily: tokens.font.mono,
+    flex: 1,
+  },
+  tenantCodeChip: {
+    fontSize: tokens.fontSize.caption,
+    color: tokens.color.blue700,
+    fontFamily: tokens.font.mono,
+    fontWeight: '700',
+    backgroundColor: tokens.color.blue100,
+    paddingHorizontal: tokens.spacing.sp2,
+    paddingVertical: 2,
+    borderRadius: tokens.radius.sm,
+  },
   form: { gap: tokens.spacing.sp3 },
   formError: {
     fontSize: tokens.fontSize.small,
