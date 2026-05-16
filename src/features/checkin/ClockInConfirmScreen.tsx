@@ -1,8 +1,9 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, StyleSheet, Text, View } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { AlertCircle, CheckCircle2, MapPin, Navigation } from 'lucide-react-native';
+import { AlertCircle, MapPin, Navigation } from 'lucide-react-native';
 import { Button } from '@shared/components/Button';
+import { GeofencePill } from '@shared/components/GeofencePill';
 import { Screen } from '@shared/components/Screen';
 import { tokens } from '@shared/theme/tokens';
 import { useAuthStore } from '@features/auth/store';
@@ -136,44 +137,38 @@ export function ClockInConfirmScreen({ navigation, route }: Props): React.JSX.El
           </View>
 
           {preview.nearest ? (
-            <View
-              style={[
-                styles.locationCard,
-                preview.nearest.inside ? styles.locationInside : styles.locationOutside,
-              ]}
-            >
-              <View style={styles.locationRow}>
-                {preview.nearest.inside ? (
-                  <CheckCircle2 size={20} color={tokens.color.green700} />
-                ) : (
-                  <AlertCircle size={20} color={tokens.color.error} />
-                )}
-                <Text
-                  style={[
-                    styles.locationStatus,
-                    {
-                      color: preview.nearest.inside ? tokens.color.green700 : tokens.color.error,
-                    },
-                  ]}
-                >
-                  {preview.nearest.inside ? 'Di dalam area kantor' : 'Di luar area kantor'}
+            <View>
+              <GeofencePill
+                state={preview.nearest.inside ? 'inside' : 'outside'}
+                label={`${preview.nearest.locationName ?? preview.nearest.name} · ${formatDistance(preview.nearest.distanceM)}`}
+              />
+              <View
+                style={[
+                  styles.locationCard,
+                  preview.nearest.inside ? styles.locationInside : styles.locationOutside,
+                ]}
+              >
+                <View style={styles.locationDetailRow}>
+                  <MapPin size={14} color={tokens.semantic.fg3} />
+                  <Text style={styles.locationName}>
+                    {preview.nearest.locationName ?? preview.nearest.name}
+                  </Text>
+                </View>
+                <Text style={styles.locationDistance}>
+                  {preview.nearest.inside
+                    ? `Anda di dalam radius geofence.`
+                    : `Anda ${formatDistance(preview.nearest.distanceM)} dari titik referensi.`}
                 </Text>
               </View>
-              <View style={styles.locationDetailRow}>
-                <MapPin size={14} color={tokens.semantic.fg3} />
-                <Text style={styles.locationName}>
-                  {preview.nearest.locationName ?? preview.nearest.name}
-                </Text>
-              </View>
-              <Text style={styles.locationDistance}>
-                Jarak: {formatDistance(preview.nearest.distanceM)}
-              </Text>
             </View>
           ) : (
             <View style={[styles.locationCard, styles.locationNone]}>
-              <Text style={styles.locationStatus}>
-                Tidak ada lokasi shift terdaftar untuk Anda hari ini.
-              </Text>
+              <View style={styles.locationRow}>
+                <AlertCircle size={20} color={tokens.color.yellow700} />
+                <Text style={[styles.locationStatus, { color: tokens.color.yellow700 }]}>
+                  Tidak ada lokasi shift hari ini
+                </Text>
+              </View>
               <Text style={styles.locationDistance}>Absen tetap bisa dikirim.</Text>
             </View>
           )}
@@ -236,6 +231,7 @@ const styles = StyleSheet.create({
   },
   coordMeta: { fontSize: tokens.fontSize.caption, color: tokens.semantic.fg3 },
   locationCard: {
+    marginTop: tokens.spacing.sp2,
     padding: tokens.spacing.sp3,
     borderRadius: tokens.radius.md,
     borderWidth: 1,

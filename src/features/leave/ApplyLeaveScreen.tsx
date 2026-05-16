@@ -1,6 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Alert, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { Calendar } from 'lucide-react-native';
+import { BalanceCard } from '@shared/components/BalanceCard';
 import { Button } from '@shared/components/Button';
 import { Screen } from '@shared/components/Screen';
 import { Select } from '@shared/components/Select';
@@ -119,10 +121,18 @@ export function ApplyLeaveScreen({ navigation }: Props): React.JSX.Element {
             error={errors.leaveType}
           />
           {leaveType && currentBalance !== null ? (
-            <View style={styles.balanceCard}>
-              <Text style={styles.balanceLabel}>Sisa Cuti</Text>
-              <Text style={styles.balanceValue}>{currentBalance} hari</Text>
-            </View>
+            <BalanceCard
+              variant="green"
+              icon={<Calendar size={18} color={tokens.color.green700} />}
+              title="Sisa cuti"
+              value={`${currentBalance} hari`}
+              endLabel={balance[leaveType]?.total_leaves_allocated ? 'TOTAL' : undefined}
+              endValue={
+                balance[leaveType]?.total_leaves_allocated
+                  ? `${balance[leaveType].total_leaves_allocated}`
+                  : undefined
+              }
+            />
           ) : null}
 
           <DateField
@@ -184,15 +194,6 @@ export function ApplyLeaveScreen({ navigation }: Props): React.JSX.Element {
 const styles = StyleSheet.create({
   scroll: { gap: tokens.spacing.sp4 },
   form: { gap: tokens.spacing.sp3 },
-  balanceCard: {
-    padding: tokens.spacing.sp3,
-    backgroundColor: tokens.color.green50,
-    borderRadius: tokens.radius.md,
-    borderWidth: 1,
-    borderColor: tokens.color.green200,
-  },
-  balanceLabel: { fontSize: tokens.fontSize.eyebrow, color: tokens.color.green700, fontWeight: '700', letterSpacing: 1 },
-  balanceValue: { fontSize: tokens.fontSize.h2, fontWeight: '800', color: tokens.color.green700 },
   totalHint: {
     fontSize: tokens.fontSize.body,
     color: tokens.semantic.fg2,

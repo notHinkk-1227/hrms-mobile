@@ -3,6 +3,7 @@ import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-nat
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Screen } from '@shared/components/Screen';
 import { StatusBadge } from '@shared/components/StatusBadge';
+import { StatusTimeline, TimelineStep } from '@shared/components/StatusTimeline';
 import { FormHeader } from '@features/forms/FormHeader';
 import { tokens } from '@shared/theme/tokens';
 import { getDoctype } from '@infrastructure/api/hrmsClient';
@@ -12,6 +13,63 @@ import {
   getStatusVariant,
 } from '@infrastructure/api/requestsClient';
 import type { MainStackParamList } from '@app/navigation/types';
+
+function buildTimeline(doc: Record<string, unknown>): TimelineStep[] {
+  const status = String(doc.status ?? 'Open');
+  const creation = doc.creation as string | undefined;
+  const modified = doc.modified as string | undefined;
+  const approver = (doc.leave_approver ?? doc.expense_approver ?? doc.approver) as string | undefined;
+  const formatDt = (iso?: string) =>
+    iso ? new Date(iso).toLocaleString('id-ID', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : undefined;
+
+  const submitted: TimelineStep = {
+    status: 'done',
+    title: 'Permohonan dikirim',
+    subtitle: formatDt(creation),
+  };
+
+  if (status === 'Approved') {
+    return [
+      submitted,
+      {
+        status: 'done',
+        title: 'Disetujui atasan',
+        subtitle: formatDt(modified),
+        actorName: approver,
+      },
+    ];
+  }
+  if (status === 'Rejected') {
+    return [
+      submitted,
+      {
+        status: 'rejected',
+        title: 'Ditolak atasan',
+        subtitle: formatDt(modified),
+        actorName: approver,
+      },
+    ];
+  }
+  if (status === 'Cancelled') {
+    return [
+      submitted,
+      {
+        status: 'rejected',
+        title: 'Dibatalkan',
+        subtitle: formatDt(modified),
+      },
+    ];
+  }
+  // Open / Draft
+  return [
+    submitted,
+    {
+      status: 'current',
+      title: 'Menunggu persetujuan atasan',
+      subtitle: approver ? `Approver: ${approver}` : undefined,
+    },
+  ];
+}
 
 type Props = NativeStackScreenProps<MainStackParamList, 'RequestDetail'>;
 
@@ -120,6 +178,11 @@ export function RequestDetailScreen({ navigation, route }: Props): React.JSX.Ele
               </Text>
             </View>
 
+            <View style={styles.timelineBlock}>
+              <Text style={styles.timelineHead}>Alur Persetujuan</Text>
+              <StatusTimeline steps={buildTimeline(doc)} />
+            </View>
+
             <View style={styles.fieldGroup}>
               {extractFields(doctype, doc).map((f) => (
                 <View key={f.label} style={styles.field}>
@@ -162,6 +225,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
   },
+  timelineBlock: { gap: tokens.spacing.sp2 },
+  timelineHead: { fontSize: tokens.fontSize.h4, fontWeight: '700', color: tokens.semantic.fg1 },
   creation: { fontSize: tokens.fontSize.small, color: tokens.semantic.fg3 },
   fieldGroup: {
     backgroundColor: tokens.semantic.surface,

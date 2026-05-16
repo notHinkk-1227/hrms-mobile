@@ -3,7 +3,9 @@ import { StyleSheet, Text, View } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { CheckCircle2 } from 'lucide-react-native';
 import { Button } from '@shared/components/Button';
+import { Gradient } from '@shared/components/Gradient';
 import { Screen } from '@shared/components/Screen';
+import { VerificationBadge } from '@shared/components/VerificationBadge';
 import { tokens } from '@shared/theme/tokens';
 import type { HomeStackParamList } from '@app/navigation/types';
 
@@ -30,79 +32,141 @@ export function ClockInSuccessScreen({ navigation, route }: Props): React.JSX.El
   const title = logType === 'IN' ? 'Absen Masuk Berhasil' : 'Absen Pulang Berhasil';
 
   return (
-    <Screen>
-      <View style={styles.content}>
-        <View style={styles.iconCircle}>
-          <CheckCircle2 size={80} color={tokens.color.green500} />
-        </View>
-        <Text style={styles.title}>{title}</Text>
-        <View style={styles.bigTimeBox}>
+    <Gradient colors={[tokens.color.blue700, tokens.color.ink900]} angle={180} style={styles.bg}>
+      <Screen style={styles.transparentBg} padded={false}>
+        <View style={styles.content}>
+          <View style={styles.iconOuter}>
+            <View style={styles.iconInner}>
+              <CheckCircle2 size={42} color={tokens.color.white} strokeWidth={3} />
+            </View>
+          </View>
+
+          <Text style={styles.eyebrow}>ABSEN BERHASIL</Text>
+          <Text style={styles.title}>{title}</Text>
           <Text style={styles.bigTime}>{formatTime(result.serverTimestamp)}</Text>
           <Text style={styles.date}>{formatFullDate(result.serverTimestamp)}</Text>
+
+          <View style={styles.badgeWrap}>
+            <VerificationBadge
+              status={result.verificationStatus ?? 'Verified'}
+              size="lg"
+              dark
+            />
+          </View>
+
+          <View style={styles.infoBox}>
+            {result.locationName ? (
+              <View style={styles.infoRow}>
+                <Text style={styles.infoKey}>LOKASI</Text>
+                <Text style={styles.infoValue}>{result.locationName}</Text>
+              </View>
+            ) : null}
+            <View style={styles.infoRow}>
+              <Text style={styles.infoKey}>NOMOR</Text>
+              <Text style={styles.infoValue}>{result.name}</Text>
+            </View>
+            {result.verificationScore !== undefined ? (
+              <View style={styles.infoRow}>
+                <Text style={styles.infoKey}>SKOR</Text>
+                <Text style={styles.infoValue}>{result.verificationScore}/100</Text>
+              </View>
+            ) : null}
+          </View>
         </View>
-        {result.locationName ? (
-          <Text style={styles.location}>📍 {result.locationName}</Text>
-        ) : null}
-        <View style={styles.ref}>
-          <Text style={styles.refLabel}>NOMOR ABSEN</Text>
-          <Text style={styles.refValue}>{result.name}</Text>
+
+        <View style={styles.cta}>
+          <Button fullWidth onPress={() => navigation.popToTop()} style={styles.ctaBtn}>
+            Kembali ke Beranda
+          </Button>
         </View>
-      </View>
-      <Button fullWidth onPress={() => navigation.popToTop()}>
-        Kembali ke Beranda
-      </Button>
-    </Screen>
+      </Screen>
+    </Gradient>
   );
 }
 
 const styles = StyleSheet.create({
+  bg: { flex: 1 },
+  transparentBg: { backgroundColor: 'transparent' },
   content: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: tokens.spacing.sp3,
+    paddingHorizontal: tokens.spacing.sp4,
+    gap: tokens.spacing.sp2,
   },
-  iconCircle: {
-    width: 140,
-    height: 140,
-    borderRadius: tokens.radius.full,
-    backgroundColor: tokens.color.green50,
+  iconOuter: {
+    width: 110,
+    height: 110,
+    borderRadius: 55,
+    backgroundColor: 'rgba(92, 171, 48, 0.18)',
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: tokens.spacing.sp3,
   },
-  title: {
-    fontSize: tokens.fontSize.h2,
-    fontWeight: '800',
-    color: tokens.semantic.fg1,
-    textAlign: 'center',
-  },
-  bigTimeBox: { alignItems: 'center', gap: 4 },
-  bigTime: {
-    fontSize: 64,
-    fontWeight: '800',
-    color: tokens.color.green700,
-    fontFamily: tokens.font.mono,
-  },
-  date: { fontSize: tokens.fontSize.body, color: tokens.semantic.fg3 },
-  location: { fontSize: tokens.fontSize.body, color: tokens.semantic.fg2 },
-  ref: {
-    marginTop: tokens.spacing.sp4,
+  iconInner: {
+    width: 76,
+    height: 76,
+    borderRadius: 38,
+    backgroundColor: tokens.color.green500,
     alignItems: 'center',
-    paddingHorizontal: tokens.spacing.sp3,
-    paddingVertical: tokens.spacing.sp2,
-    backgroundColor: tokens.semantic.surface2,
-    borderRadius: tokens.radius.md,
+    justifyContent: 'center',
   },
-  refLabel: {
-    fontSize: tokens.fontSize.eyebrow,
-    color: tokens.semantic.fg3,
+  eyebrow: {
+    fontFamily: tokens.font.mono,
+    fontSize: 10,
+    color: tokens.color.yellow300,
+    fontWeight: '700',
+    letterSpacing: 1.8,
+  },
+  title: {
+    fontSize: tokens.fontSize.h3,
+    fontWeight: '700',
+    color: tokens.color.white,
+    textAlign: 'center',
+    marginBottom: tokens.spacing.sp1,
+  },
+  bigTime: {
+    fontFamily: tokens.font.display,
+    fontSize: 48,
+    color: tokens.color.white,
+    fontWeight: '800',
+    letterSpacing: -1,
+  },
+  date: {
+    fontSize: tokens.fontSize.body,
+    color: 'rgba(255,255,255,0.7)',
+    marginBottom: tokens.spacing.sp2,
+  },
+  badgeWrap: { marginVertical: tokens.spacing.sp2 },
+  infoBox: {
+    width: '100%',
+    padding: tokens.spacing.sp3,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    borderRadius: tokens.radius.md,
+    gap: tokens.spacing.sp2,
+    marginTop: tokens.spacing.sp3,
+  },
+  infoRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  infoKey: {
+    fontFamily: tokens.font.mono,
+    fontSize: 11,
+    color: 'rgba(255,255,255,0.7)',
     fontWeight: '700',
     letterSpacing: 1,
   },
-  refValue: {
-    fontSize: tokens.fontSize.small,
-    color: tokens.semantic.fg1,
+  infoValue: {
     fontFamily: tokens.font.mono,
+    fontSize: 12,
+    color: tokens.color.white,
+    fontWeight: '700',
   },
+  cta: {
+    paddingHorizontal: tokens.spacing.sp4,
+    paddingBottom: tokens.spacing.sp4,
+  },
+  ctaBtn: { backgroundColor: tokens.color.white },
 });

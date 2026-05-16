@@ -30,6 +30,37 @@ function statusColor(status: string): string {
   }
 }
 
+interface CellTheme {
+  bg: string;
+  text: string;
+  pip: string | null;
+}
+
+function cellTheme(status: string | undefined, isToday: boolean): CellTheme {
+  if (isToday) {
+    return {
+      bg: tokens.semantic.brand,
+      text: tokens.color.white,
+      pip: status ? statusColor(status) : tokens.color.white,
+    };
+  }
+  if (!status) return { bg: 'transparent', text: tokens.semantic.fg1, pip: null };
+  switch (status) {
+    case 'Present':
+      return { bg: tokens.color.green50, text: tokens.color.green700, pip: tokens.color.green500 };
+    case 'Half Day':
+      return { bg: tokens.color.yellow50, text: tokens.color.yellow700, pip: tokens.color.yellow400 };
+    case 'On Leave':
+      return { bg: tokens.color.blue50, text: tokens.color.blue700, pip: tokens.color.blue400 };
+    case 'Work From Home':
+      return { bg: tokens.color.blue50, text: tokens.color.blue700, pip: tokens.color.blue300 };
+    case 'Absent':
+      return { bg: tokens.color.errorTint, text: tokens.color.error, pip: tokens.color.error };
+    default:
+      return { bg: tokens.semantic.surface2, text: tokens.semantic.fg2, pip: null };
+  }
+}
+
 function statusLabel(status: string): string {
   switch (status) {
     case 'Present':
@@ -164,19 +195,34 @@ export function MyAttendanceScreen({ navigation }: Props): React.JSX.Element {
                 {matrix.map((day, idx) => {
                   if (day === null) return <View key={`empty-${idx}`} style={styles.cell} />;
                   const record = recordByDate[day];
+                  const isToday =
+                    today.getFullYear() === year &&
+                    today.getMonth() + 1 === month &&
+                    today.getDate() === day;
+                  const theme = cellTheme(record?.status, isToday);
                   return (
                     <View key={`d-${day}`} style={styles.cell}>
                       <View
                         style={[
                           styles.cellInner,
-                          record && { backgroundColor: statusColor(record.status) + '20', borderColor: statusColor(record.status) },
+                          {
+                            backgroundColor: theme.bg,
+                            // Today ring shadow via border
+                            ...(isToday ? { borderWidth: 2, borderColor: tokens.color.blue100 } : {}),
+                          },
                         ]}
                       >
-                        <Text style={styles.cellText}>{day}</Text>
-                        {record ? (
-                          <View
-                            style={[styles.dot, { backgroundColor: statusColor(record.status) }]}
-                          />
+                        <Text
+                          style={[
+                            styles.cellText,
+                            (isToday || record) && styles.cellTextEmphasis,
+                            { color: theme.text },
+                          ]}
+                        >
+                          {day}
+                        </Text>
+                        {theme.pip ? (
+                          <View style={[styles.pip, { backgroundColor: theme.pip }]} />
                         ) : null}
                       </View>
                     </View>
@@ -246,12 +292,11 @@ const styles = StyleSheet.create({
     borderRadius: tokens.radius.sm,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: 'transparent',
-    gap: 2,
+    gap: 3,
   },
-  cellText: { fontSize: tokens.fontSize.small, color: tokens.semantic.fg1 },
-  dot: { width: 4, height: 4, borderRadius: 2 },
+  cellText: { fontSize: tokens.fontSize.small, fontWeight: '500' },
+  cellTextEmphasis: { fontWeight: '700' },
+  pip: { width: 5, height: 5, borderRadius: 2.5 },
   statsCard: {
     padding: tokens.spacing.sp3,
     backgroundColor: tokens.semantic.surface,
