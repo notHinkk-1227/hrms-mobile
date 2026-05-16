@@ -1,16 +1,17 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
-import type { CompositeScreenProps } from '@react-navigation/native';
+import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
+import type { CompositeScreenProps, NavigationProp } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
-import { Clock, LogIn, LogOut } from 'lucide-react-native';
+import { Calendar, Clock, FileText, RefreshCw, Replace, Wallet } from 'lucide-react-native';
 import { Button } from '@shared/components/Button';
 import { Screen } from '@shared/components/Screen';
 import { tokens } from '@shared/theme/tokens';
 import { useAuthStore } from '@features/auth/store';
 import { getLastCheckinToday, FrappeEmployeeCheckin } from '@infrastructure/api/checkinClient';
 import { ApiError } from '@infrastructure/api/errors';
-import type { HomeStackParamList, MainTabsParamList } from '@app/navigation/types';
+import type { HomeStackParamList, MainStackParamList, MainTabsParamList } from '@app/navigation/types';
 import type { LogType } from '@domain/entities/checkin';
 
 type Props = CompositeScreenProps<
@@ -30,6 +31,7 @@ function formatDate(iso: string): string {
 }
 
 export function HomeScreen({ navigation }: Props): React.JSX.Element {
+  const parent = useNavigation<NavigationProp<MainStackParamList>>();
   const employee = useAuthStore((s) => s.employee);
   const tenantName = useAuthStore((s) => s.tenantName);
 
@@ -137,21 +139,31 @@ export function HomeScreen({ navigation }: Props): React.JSX.Element {
         ) : null}
 
         <Text style={styles.sectionTitle}>Aksi Cepat</Text>
-        <View style={styles.quickActions}>
-          <View style={styles.quickCard}>
-            <LogIn size={20} color={tokens.semantic.brand} />
+        <View style={styles.quickGrid}>
+          <Pressable style={styles.quickCard} onPress={() => parent.navigate('ApplyLeave')}>
+            <Calendar size={22} color={tokens.semantic.brand} />
             <Text style={styles.quickLabel}>Ajukan Cuti</Text>
-            <Text style={styles.quickHint}>Fase 3</Text>
-          </View>
-          <View style={styles.quickCard}>
-            <LogOut size={20} color={tokens.semantic.brand} />
-            <Text style={styles.quickLabel}>Klaim</Text>
-            <Text style={styles.quickHint}>Fase 3</Text>
-          </View>
+          </Pressable>
+          <Pressable style={styles.quickCard} onPress={() => parent.navigate('ApplyExpense')}>
+            <FileText size={22} color={tokens.color.green600} />
+            <Text style={styles.quickLabel}>Klaim Reimbursement</Text>
+          </Pressable>
+          <Pressable style={styles.quickCard} onPress={() => parent.navigate('ApplyAdvance')}>
+            <Wallet size={22} color={tokens.color.yellow500} />
+            <Text style={styles.quickLabel}>Kasbon</Text>
+          </Pressable>
+          <Pressable style={styles.quickCard} onPress={() => parent.navigate('RequestAttendance')}>
+            <RefreshCw size={22} color={tokens.semantic.brand} />
+            <Text style={styles.quickLabel}>Koreksi Absen</Text>
+          </Pressable>
+          <Pressable style={styles.quickCard} onPress={() => parent.navigate('RequestShift')}>
+            <Replace size={22} color={tokens.color.ink600} />
+            <Text style={styles.quickLabel}>Ganti Shift</Text>
+          </Pressable>
         </View>
 
         <Text style={styles.note}>
-          Mode standard: clock-in pakai endpoint Frappe HR bawaan. Selfie + verification
+          Mode standard: clock-in + form pakai endpoint Frappe HR bawaan. Selfie + verification
           scoring nyusul saat sopwer_hrms backend ready.
         </Text>
       </ScrollView>
@@ -203,18 +215,22 @@ const styles = StyleSheet.create({
     color: tokens.semantic.fg1,
     marginTop: tokens.spacing.sp2,
   },
-  quickActions: { flexDirection: 'row', gap: tokens.spacing.sp2 },
+  quickGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: tokens.spacing.sp2,
+  },
   quickCard: {
-    flex: 1,
+    flexBasis: '48%',
     padding: tokens.spacing.sp3,
     backgroundColor: tokens.semantic.surface,
     borderRadius: tokens.radius.lg,
     borderWidth: 1,
     borderColor: tokens.semantic.line,
     gap: 6,
+    minHeight: 80,
   },
-  quickLabel: { fontSize: tokens.fontSize.body, fontWeight: '600', color: tokens.semantic.fg1 },
-  quickHint: { fontSize: tokens.fontSize.caption, color: tokens.semantic.fg3 },
+  quickLabel: { fontSize: tokens.fontSize.small, fontWeight: '600', color: tokens.semantic.fg1 },
   note: {
     marginTop: tokens.spacing.sp4,
     fontSize: tokens.fontSize.small,

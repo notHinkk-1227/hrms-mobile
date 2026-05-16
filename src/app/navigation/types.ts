@@ -21,9 +21,26 @@ export type MainTabsParamList = {
   Profile: undefined;
 };
 
+export type FormSuccessParams = {
+  doctype: string;
+  name: string;
+  title: string;
+  message?: string;
+};
+
+export type MainStackParamList = {
+  Tabs: NavigatorScreenParams<MainTabsParamList>;
+  ApplyLeave: undefined;
+  ApplyExpense: undefined;
+  ApplyAdvance: undefined;
+  RequestAttendance: undefined;
+  RequestShift: undefined;
+  FormSuccess: FormSuccessParams;
+};
+
 export type RootStackParamList = {
   Auth: NavigatorScreenParams<AuthStackParamList>;
-  Main: NavigatorScreenParams<MainTabsParamList>;
+  Main: NavigatorScreenParams<MainStackParamList>;
 };
 
 declare global {

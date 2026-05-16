@@ -3,7 +3,7 @@ import { NavigationContainer } from '@react-navigation/native';
 import { authEvents } from '@infrastructure/api/authEvents';
 import { useAuthStore } from '@features/auth/store';
 import { AuthStack } from './AuthStack';
-import { MainTabs } from './MainTabs';
+import { MainStack } from './MainStack';
 import { SplashView } from './SplashView';
 
 export function RootNavigator(): React.JSX.Element {
@@ -29,5 +29,5 @@ export function RootNavigator(): React.JSX.Element {
 
   const showMain = isAuthenticated && privacyAccepted;
 
-  return <NavigationContainer>{showMain ? <MainTabs /> : <AuthStack />}</NavigationContainer>;
+  return <NavigationContainer>{showMain ? <MainStack /> : <AuthStack />}</NavigationContainer>;
 }
