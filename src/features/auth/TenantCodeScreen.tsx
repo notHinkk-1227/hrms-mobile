@@ -32,7 +32,7 @@ export function TenantCodeScreen({ navigation }: Props): React.JSX.Element {
       const deviceId = await getDeviceId();
       const result = await resolveTenantCode(code, deviceId);
       if (!result?.ok || !result.url) {
-        setError('Kode tenant tidak valid');
+        setError(result?.message || 'Kode tenant tidak ditemukan');
         return;
       }
       setTenant({ code: result.code ?? code, url: result.url, name: result.tenant_name ?? code });
@@ -43,6 +43,8 @@ export function TenantCodeScreen({ navigation }: Props): React.JSX.Element {
         setError('Kode tenant tidak ditemukan');
       } else if (apiError.kind === 'network') {
         setError('Tidak ada koneksi — periksa jaringan');
+      } else if (apiError.kind === 'server') {
+        setError('Server bermasalah — coba lagi');
       } else {
         setError(apiError.message || 'Gagal menghubungi server');
       }
