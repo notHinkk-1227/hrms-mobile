@@ -30,6 +30,23 @@ function formatDistance(meters: number): string {
   return `${(meters / 1000).toFixed(2)} km`;
 }
 
+/** Read file path → data URI base64 string. Pakai fetch + FileReader (no native dep). */
+async function fileToBase64(path: string): Promise<string> {
+  const uri = path.startsWith('file://') ? path : `file://${path}`;
+  const response = await fetch(uri);
+  const blob = await response.blob();
+  return new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = reader.result;
+      if (typeof result === 'string') resolve(result);
+      else reject(new Error('Hasil baca file bukan string'));
+    };
+    reader.onerror = () => reject(reader.error ?? new Error('Gagal baca foto selfie'));
+    reader.readAsDataURL(blob);
+  });
+}
+
 export function ClockInConfirmScreen({ navigation, route }: Props): React.JSX.Element {
   const { logType, photoPath } = route.params;
   const employee = useAuthStore((s) => s.employee);
@@ -75,6 +92,22 @@ export function ClockInConfirmScreen({ navigation, route }: Props): React.JSX.El
     try {
       const deviceId = await getDeviceId();
       const fingerprint = await getDeviceFingerprint();
+
+      // Enhanced mode (sopwer_hrms) — backend wajib selfie_base64 di payload
+      // clock_in, lalu save file sendiri via decode_selfie + db.set_value.
+      // Standard mode — submit dulu, upload selfie multipart setelah doc dibuat.
+      let selfieBase64: string | undefined;
+      if (photoPath && features.hasSopwerHrms) {
+        try {
+          selfieBase64 = await fileToBase64(photoPath);
+        } catch (e) {
+          const msg = e instanceof Error ? e.message : 'Foto selfie tidak terbaca';
+          toast.show({ variant: 'error', title: 'Foto selfie tidak terbaca', message: msg });
+          setSubmitting(false);
+          return;
+        }
+      }
+
       const outcome = await useCase.submit(
         {
           logType,
@@ -83,15 +116,14 @@ export function ClockInConfirmScreen({ navigation, route }: Props): React.JSX.El
           deviceFingerprint: fingerprint,
           overrideOutOfGeofence: override,
           reasonOutsideLocation: reasonOutside.trim() || undefined,
+          selfieBase64,
         },
         preview,
       );
 
       if (outcome.kind === 'success') {
-        if (photoPath && outcome.result.name) {
-          // Upload selfie attached ke Employee Checkin doc. Tunggu hasil supaya
-          // user dapat feedback kalau upload error — checkin tetap sukses tapi
-          // selfie tidak tersimpan.
+        // Standard mode — backend tidak handle selfie, upload manual.
+        if (photoPath && outcome.result.name && !features.hasSopwerHrms) {
           const uri = photoPath.startsWith('file://') ? photoPath : `file://${photoPath}`;
           try {
             await uploadFile({
