@@ -1,13 +1,14 @@
 import React, { useEffect, useState } from 'react';
 import { Image, ScrollView, StyleSheet, Text, View } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { Clock, LogIn, LogOut, MapPin, Smartphone } from 'lucide-react-native';
+import { Clock, ImageOff, LogIn, LogOut, MapPin, Smartphone } from 'lucide-react-native';
+import { OSMStaticMap } from '@shared/components/OSMStaticMap';
 import { Screen } from '@shared/components/Screen';
 import { SkeletonList } from '@shared/components/Skeleton';
 import { StatusBadge } from '@shared/components/StatusBadge';
 import { FormHeader } from '@features/forms/FormHeader';
 import { tokens } from '@shared/theme/tokens';
-import { persist, StorageKeys } from '@infrastructure/storage/mmkv';
+import { getAuthImageSource } from '@shared/utils/imageAuth';
 import {
   CheckinAttachment,
   FrappeEmployeeCheckin,
@@ -34,19 +35,13 @@ function formatDateLong(iso: string): string {
   });
 }
 
-function resolveFileUrl(path: string): string {
-  if (path.startsWith('http://') || path.startsWith('https://')) return path;
-  const base = persist.getString(StorageKeys.TENANT_URL) ?? '';
-  if (!base) return path;
-  return base.replace(/\/$/, '') + path;
-}
-
 export function CheckinDetailScreen({ navigation, route }: Props): React.JSX.Element {
   const { name } = route.params;
   const [checkin, setCheckin] = useState<FrappeEmployeeCheckin | null>(null);
   const [attachments, setAttachments] = useState<CheckinAttachment[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [selfieError, setSelfieError] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -94,72 +89,73 @@ export function CheckinDetailScreen({ navigation, route }: Props): React.JSX.Ele
         </View>
       ) : (
         <ScrollView contentContainerStyle={styles.scroll}>
-          <View style={styles.heroCard}>
+          <View style={styles.heroRow}>
             <View style={[styles.iconWrap, { backgroundColor: iconBg }]}>
-              <Icon size={26} color={iconTint} />
+              <Icon size={22} color={iconTint} />
             </View>
-            <Text style={styles.bigTime}>{formatTime(checkin.time)}</Text>
-            <Text style={styles.date}>{formatDateLong(checkin.time)}</Text>
-            <View style={styles.badgeWrap}>
-              <StatusBadge
-                label={isIn ? 'Presensi Masuk' : 'Presensi Pulang'}
-                variant={isIn ? 'success' : 'neutral'}
-              />
+            <View style={styles.heroText}>
+              <Text style={styles.bigTime}>{formatTime(checkin.time)}</Text>
+              <Text style={styles.date}>{formatDateLong(checkin.time)}</Text>
             </View>
+            <StatusBadge
+              label={isIn ? 'Masuk' : 'Pulang'}
+              variant={isIn ? 'success' : 'neutral'}
+            />
           </View>
 
-          <View style={styles.section}>
-            <Text style={styles.sectionLabel}>FOTO SELFIE</Text>
-            {selfie?.is_image === 1 ? (
-              <Image
-                source={{ uri: resolveFileUrl(selfie.file_url) }}
-                style={styles.selfie}
-                resizeMode="cover"
-              />
-            ) : (
-              <View style={styles.selfieEmpty}>
-                <Text style={styles.selfieEmptyText}>Tidak ada foto presensi.</Text>
-              </View>
-            )}
-          </View>
+          {checkin.latitude != null && checkin.longitude != null ? (
+            <OSMStaticMap
+              latitude={checkin.latitude}
+              longitude={checkin.longitude}
+              height={180}
+            />
+          ) : null}
 
-          <View style={styles.section}>
-            <Text style={styles.sectionLabel}>INFORMASI</Text>
-            <View style={styles.infoCard}>
-              {checkin.latitude != null && checkin.longitude != null ? (
-                <Row
-                  icon={<MapPin size={16} color={tokens.semantic.fg3} />}
-                  label="Koordinat GPS"
-                  value={`${checkin.latitude.toFixed(6)}, ${checkin.longitude.toFixed(6)}`}
-                />
-              ) : (
-                <Row
-                  icon={<MapPin size={16} color={tokens.semantic.fg3} />}
-                  label="Koordinat GPS"
-                  value="Tidak tersedia"
-                />
-              )}
-              {checkin.shift ? (
-                <Row
-                  icon={<Clock size={16} color={tokens.semantic.fg3} />}
-                  label="Shift"
-                  value={checkin.shift}
-                />
-              ) : null}
-              {checkin.device_id ? (
-                <Row
-                  icon={<Smartphone size={16} color={tokens.semantic.fg3} />}
-                  label="Device"
-                  value={checkin.device_id}
-                />
-              ) : null}
+          {selfie?.is_image === 1 && !selfieError ? (
+            <Image
+              source={getAuthImageSource(selfie.file_url) ?? { uri: selfie.file_url }}
+              style={styles.selfieCompact}
+              resizeMode="cover"
+              onError={() => setSelfieError(true)}
+            />
+          ) : (
+            <View style={styles.selfieEmpty}>
+              <ImageOff size={20} color={tokens.semantic.fg3} />
+              <Text style={styles.selfieEmptyText}>
+                {selfieError ? 'Foto tidak dapat dimuat' : 'Tanpa foto'}
+              </Text>
+            </View>
+          )}
+
+          <View style={styles.infoCard}>
+            {checkin.latitude != null && checkin.longitude != null ? (
               <Row
-                icon={<Clock size={16} color={tokens.semantic.fg3} />}
-                label="Nomor"
-                value={checkin.name}
+                icon={<MapPin size={14} color={tokens.semantic.fg3} />}
+                label="GPS"
+                value={`${checkin.latitude.toFixed(5)}, ${checkin.longitude.toFixed(5)}`}
                 mono
               />
-            </View>
+            ) : null}
+            {checkin.shift ? (
+              <Row
+                icon={<Clock size={14} color={tokens.semantic.fg3} />}
+                label="Shift"
+                value={checkin.shift}
+              />
+            ) : null}
+            {checkin.device_id ? (
+              <Row
+                icon={<Smartphone size={14} color={tokens.semantic.fg3} />}
+                label="Device"
+                value={checkin.device_id}
+              />
+            ) : null}
+            <Row
+              icon={<Clock size={14} color={tokens.semantic.fg3} />}
+              label="ID"
+              value={checkin.name}
+              mono
+            />
           </View>
         </ScrollView>
       )}
@@ -190,53 +186,50 @@ function Row({
 }
 
 const styles = StyleSheet.create({
-  scroll: { gap: tokens.spacing.sp4, paddingBottom: tokens.spacing.sp5 },
+  scroll: { gap: tokens.spacing.sp3, paddingBottom: tokens.spacing.sp4 },
   skeletonWrap: { paddingVertical: tokens.spacing.sp2 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: tokens.spacing.sp4 },
   errorText: { fontSize: tokens.fontSize.small, color: tokens.color.error, textAlign: 'center' },
-  heroCard: {
+  heroRow: {
+    flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: tokens.spacing.sp4,
-    gap: tokens.spacing.sp1,
+    gap: tokens.spacing.sp3,
+    paddingVertical: tokens.spacing.sp2,
   },
   iconWrap: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: tokens.spacing.sp2,
   },
+  heroText: { flex: 1 },
   bigTime: {
     fontFamily: tokens.font.display,
-    fontSize: tokens.fontSize.timeLarge,
+    fontSize: 32,
     fontWeight: '800',
     color: tokens.semantic.fg1,
-    letterSpacing: -1,
+    letterSpacing: -0.5,
+    lineHeight: 36,
   },
-  date: { fontSize: tokens.fontSize.body, color: tokens.semantic.fg3 },
-  badgeWrap: { marginTop: tokens.spacing.sp2 },
-  section: { gap: tokens.spacing.sp2 },
-  sectionLabel: {
-    fontFamily: tokens.font.mono,
-    fontSize: tokens.fontSize.eyebrow,
-    fontWeight: '700',
-    letterSpacing: 1,
-    color: tokens.semantic.fg3,
-  },
-  selfie: {
-    width: '100%',
+  date: { fontSize: tokens.fontSize.small, color: tokens.semantic.fg3 },
+  selfieCompact: {
+    width: '55%',
     aspectRatio: 1,
+    alignSelf: 'center',
     borderRadius: tokens.radius.lg,
     backgroundColor: tokens.semantic.surface2,
   },
   selfieEmpty: {
-    paddingVertical: tokens.spacing.sp5,
+    paddingVertical: tokens.spacing.sp3,
     backgroundColor: tokens.semantic.surface,
-    borderRadius: tokens.radius.lg,
+    borderRadius: tokens.radius.md,
     borderWidth: 1,
     borderColor: tokens.semantic.line,
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    gap: tokens.spacing.sp2,
   },
   selfieEmptyText: { fontSize: tokens.fontSize.small, color: tokens.semantic.fg3 },
   infoCard: {
@@ -245,12 +238,12 @@ const styles = StyleSheet.create({
     borderRadius: tokens.radius.md,
     borderWidth: 1,
     borderColor: tokens.semantic.line,
-    gap: tokens.spacing.sp3,
+    gap: tokens.spacing.sp2,
   },
-  row: { flexDirection: 'row', alignItems: 'center', gap: tokens.spacing.sp3 },
-  rowIcon: { width: 24, alignItems: 'center' },
-  rowText: { flex: 1, gap: 2 },
-  rowLabel: { fontSize: tokens.fontSize.caption, color: tokens.semantic.fg3 },
-  rowValue: { fontSize: tokens.fontSize.body, color: tokens.semantic.fg1, fontWeight: '500' },
-  rowValueMono: { fontFamily: tokens.font.mono, fontSize: tokens.fontSize.small },
+  row: { flexDirection: 'row', alignItems: 'center', gap: tokens.spacing.sp2 },
+  rowIcon: { width: 20, alignItems: 'center' },
+  rowText: { flex: 1, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  rowLabel: { fontSize: tokens.fontSize.caption, color: tokens.semantic.fg3, fontWeight: '600' },
+  rowValue: { fontSize: tokens.fontSize.small, color: tokens.semantic.fg1, fontWeight: '500' },
+  rowValueMono: { fontFamily: tokens.font.mono, fontSize: tokens.fontSize.caption },
 });

@@ -12,7 +12,6 @@ import {
   HolidayItem,
   TeamLeaveItem,
 } from '@infrastructure/api/calendarClient';
-import { ApiError } from '@infrastructure/api/errors';
 import type { MainStackParamList } from '@app/navigation/types';
 
 type Props = NativeStackScreenProps<MainStackParamList, 'TeamCalendar'>;
@@ -63,6 +62,8 @@ export function TeamCalendarScreen({ navigation }: Props): React.JSX.Element {
   const [error, setError] = useState<string | null>(null);
   const [selected, setSelected] = useState<DayDetail | null>(null);
 
+  const [permLimited, setPermLimited] = useState(false);
+
   const load = useCallback(async () => {
     if (!employee?.name) {
       setLoading(false);
@@ -71,24 +72,34 @@ export function TeamCalendarScreen({ navigation }: Props): React.JSX.Element {
     }
     setLoading(true);
     setError(null);
-    try {
-      const fromDate = startOfMonth(year, month);
-      const toDate = endOfMonth(year, month);
-      const holidayList = await calendarApi.getEmployeeHolidayList(employee.name);
-      const [holidayRows, leaveRows] = await Promise.all([
-        holidayList
-          ? calendarApi.listHolidays(holidayList, fromDate, toDate)
-          : Promise.resolve<HolidayItem[]>([]),
-        calendarApi.listTeamLeaves(employee.department ?? null, fromDate, toDate),
-      ]);
-      setHolidays(holidayRows);
-      setLeaves(leaveRows);
-    } catch (e) {
-      const apiError = e as ApiError;
-      setError(apiError.message || 'Gagal memuat kalender');
-    } finally {
-      setLoading(false);
+    setPermLimited(false);
+    const fromDate = startOfMonth(year, month);
+    const toDate = endOfMonth(year, month);
+
+    let limitedFlag = false;
+    let holidayRows: HolidayItem[] = [];
+    const holidayList = await calendarApi
+      .getEmployeeHolidayList(employee.name)
+      .catch(() => null);
+    if (holidayList) {
+      holidayRows = await calendarApi
+        .listHolidays(holidayList, fromDate, toDate)
+        .catch(() => {
+          limitedFlag = true;
+          return [];
+        });
     }
+    const leaveRows = await calendarApi
+      .listTeamLeaves(employee.department ?? null, fromDate, toDate)
+      .catch(() => {
+        limitedFlag = true;
+        return [];
+      });
+
+    setHolidays(holidayRows);
+    setLeaves(leaveRows);
+    setPermLimited(limitedFlag);
+    setLoading(false);
   }, [employee?.name, employee?.department, year, month]);
 
   useEffect(() => {
@@ -184,6 +195,13 @@ export function TeamCalendarScreen({ navigation }: Props): React.JSX.Element {
               <LegendItem color={tokens.color.blue500} label="Cuti tim 1-2" />
               <LegendItem color={tokens.color.yellow500} label="Cuti tim ≥3" />
             </View>
+
+            {permLimited ? (
+              <Text style={styles.permNote}>
+                Catatan: data libur dan cuti tim memerlukan akses HR. Sebagian
+                informasi mungkin tidak ditampilkan.
+              </Text>
+            ) : null}
           </>
         )}
       </ScrollView>
@@ -251,6 +269,15 @@ const styles = StyleSheet.create({
   legendItem: { flexDirection: 'row', alignItems: 'center', gap: tokens.spacing.sp1_5 },
   legendDot: { width: 10, height: 10, borderRadius: 5 },
   legendText: { fontSize: tokens.fontSize.small, color: tokens.semantic.fg2 },
+  permNote: {
+    fontSize: tokens.fontSize.caption,
+    color: tokens.semantic.fg3,
+    fontStyle: 'italic',
+    padding: tokens.spacing.sp3,
+    backgroundColor: tokens.semantic.surface2,
+    borderRadius: tokens.radius.md,
+    lineHeight: tokens.lineHeight.small,
+  },
   sheetBody: { gap: tokens.spacing.sp3, paddingBottom: tokens.spacing.sp2 },
   holidayCard: {
     padding: tokens.spacing.sp3,

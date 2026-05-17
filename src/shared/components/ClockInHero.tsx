@@ -17,6 +17,10 @@ export interface ClockInHeroProps {
   blockedReason?: string;
   /** Baris lokasi (nama + jarak/verifikasi) yang selalu tampil di hero kalau ada */
   locationLine?: string;
+  /** Jam clock-in terakhir (format HH:MM). Tampil di state in_progress/done */
+  checkInTime?: string;
+  /** Indicator GPS aktif/tidak — pin icon di pojok kanan atas */
+  gpsActive?: boolean;
 }
 
 function tick(): string {
@@ -54,18 +58,20 @@ const STATE_CONFIG: Record<
   },
   in_progress: {
     colors: [tokens.color.green500, tokens.color.green700],
-    label: 'SUDAH PRESENSI MASUK',
+    label: 'SUDAH MASUK',
     labelColor: tokens.color.yellow300,
     ctaText: 'Presensi Pulang',
     ctaTextColor: tokens.color.green700,
     disabled: false,
   },
   done: {
-    colors: [tokens.color.ink700, tokens.color.ink900],
-    label: 'SUDAH PRESENSI PULANG',
+    // Pakai gradient blue sama dengan idle — supaya visually konsisten dengan
+    // state "siap untuk presensi". Setelah pulang user mulai cycle baru.
+    colors: [tokens.color.blue500, tokens.color.blue700],
+    label: 'SUDAH PULANG',
     labelColor: tokens.color.yellow300,
     ctaText: 'Presensi Masuk Lagi',
-    ctaTextColor: tokens.color.ink900,
+    ctaTextColor: tokens.color.blue700,
     disabled: false,
   },
   blocked: {
@@ -93,6 +99,8 @@ export function ClockInHero({
   onPressHistory,
   blockedReason,
   locationLine,
+  checkInTime,
+  gpsActive,
 }: ClockInHeroProps): React.JSX.Element {
   const [now, setNow] = useState(tick());
   useEffect(() => {
@@ -101,6 +109,16 @@ export function ClockInHero({
   }, []);
 
   const cfg = STATE_CONFIG[state];
+  const checkedIn = state === 'in_progress' || state === 'done';
+  // Saat sudah presensi: tampilkan jam clock-in sebagai big time (lebih relevan
+  // daripada current time yang sudah ada di status bar OS). Saat idle/blocked:
+  // current time live update.
+  const bigTimeText = checkedIn && checkInTime ? checkInTime : now;
+  const subLabel = checkedIn
+    ? state === 'in_progress'
+      ? 'Jam masuk'
+      : 'Jam pulang'
+    : null;
 
   return (
     <Gradient colors={cfg.colors} angle={160} style={styles.card}>
@@ -110,9 +128,17 @@ export function ClockInHero({
         style={({ pressed }) => [styles.header, pressed && onPressHistory ? styles.headerPressed : null]}
       >
         <View style={styles.topRow}>
-          <Text style={[styles.label, { color: cfg.labelColor }]}>{cfg.label}</Text>
+          <Text
+            style={[styles.label, { color: cfg.labelColor }]}
+            numberOfLines={1}
+            ellipsizeMode="tail"
+          >
+            {cfg.label}
+          </Text>
           <View style={styles.dateRow}>
-            <Text style={styles.date}>{formatDateLong()}</Text>
+            <Text style={styles.date} numberOfLines={1}>
+              {formatDateLong()}
+            </Text>
             {onPressHistory ? (
               <ChevronRight size={14} color="rgba(255,255,255,0.7)" />
             ) : null}
@@ -120,15 +146,24 @@ export function ClockInHero({
         </View>
 
         <View style={styles.timeRow}>
-          <Text style={styles.time}>{now}</Text>
-          {locationLine ? (
-            <View style={styles.locationRow}>
-              <MapPin size={13} color="rgba(255,255,255,0.85)" />
-              <Text style={styles.locationText} numberOfLines={1}>
-                {locationLine}
-              </Text>
-            </View>
-          ) : null}
+          <Text style={styles.time}>{bigTimeText}</Text>
+          {subLabel ? <Text style={styles.subTime}>{subLabel}</Text> : null}
+          <View style={styles.metaRow}>
+            {gpsActive ? (
+              <View style={styles.gpsPill}>
+                <MapPin size={10} color={tokens.color.green300} />
+                <Text style={styles.gpsText}>GPS AKTIF</Text>
+              </View>
+            ) : null}
+            {locationLine ? (
+              <View style={styles.locationRow}>
+                <MapPin size={13} color="rgba(255,255,255,0.85)" />
+                <Text style={styles.locationText} numberOfLines={1}>
+                  {locationLine}
+                </Text>
+              </View>
+            ) : null}
+          </View>
         </View>
       </Pressable>
 
@@ -165,17 +200,23 @@ const styles = StyleSheet.create({
     padding: tokens.spacing.sp4,
     borderRadius: tokens.radius.lg,
     gap: tokens.spacing.sp3,
-    ...tokens.shadow.md,
+    ...tokens.shadow.sm,
   },
   header: { gap: tokens.spacing.sp2, borderRadius: tokens.radius.md },
   headerPressed: { opacity: 0.85 },
-  topRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  dateRow: { flexDirection: 'row', alignItems: 'center', gap: tokens.spacing.sp1 },
+  topRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: tokens.spacing.sp2,
+  },
+  dateRow: { flexDirection: 'row', alignItems: 'center', gap: tokens.spacing.sp1, flexShrink: 0 },
   label: {
     fontFamily: tokens.font.mono,
     fontSize: 10,
     fontWeight: '700',
     letterSpacing: 1.8,
+    flexShrink: 1,
   },
   date: {
     fontSize: 11,
@@ -183,6 +224,12 @@ const styles = StyleSheet.create({
     textAlign: 'right',
   },
   timeRow: { gap: tokens.spacing.sp1_5 },
+  metaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: tokens.spacing.sp2,
+    flexWrap: 'wrap',
+  },
   time: {
     fontFamily: tokens.font.mono,
     fontSize: tokens.fontSize.timeHero,
@@ -193,6 +240,31 @@ const styles = StyleSheet.create({
   },
   locationRow: { flexDirection: 'row', alignItems: 'center', gap: tokens.spacing.sp1_5 },
   locationText: { fontSize: 12, color: 'rgba(255,255,255,0.85)' },
+  gpsPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: tokens.radius.full,
+    backgroundColor: 'rgba(99,217,132,0.18)',
+  },
+  gpsText: {
+    fontFamily: tokens.font.mono,
+    fontSize: 9,
+    fontWeight: '700',
+    letterSpacing: 0.8,
+    color: tokens.color.green300,
+  },
+  subTime: {
+    fontFamily: tokens.font.mono,
+    fontSize: 10,
+    fontWeight: '700',
+    color: 'rgba(255,255,255,0.75)',
+    letterSpacing: 1.5,
+    textTransform: 'uppercase',
+    marginTop: -tokens.spacing.sp1,
+  },
   blockedText: {
     fontSize: tokens.fontSize.body,
     color: tokens.color.white,
@@ -200,12 +272,11 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   cta: {
-    marginTop: tokens.spacing.sp3,
-    minHeight: 52,
+    marginTop: tokens.spacing.sp2,
+    minHeight: 48,
     borderRadius: tokens.radius.md,
     alignItems: 'center',
     justifyContent: 'center',
-    ...tokens.shadow.md,
   },
   ctaDisabled: { backgroundColor: 'rgba(255,255,255,0.12)' },
   ctaPressed: { opacity: 0.85 },

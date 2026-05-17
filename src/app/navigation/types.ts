@@ -18,10 +18,15 @@ export type HomeStackParamList = {
   Notifications: undefined;
 };
 
+export type MyRequestsTabParams = {
+  filterDoctype?: string;
+  mode?: 'mine' | 'team';
+};
+
 export type MainTabsParamList = {
   Home: NavigatorScreenParams<HomeStackParamList>;
-  MyRequests: undefined;
-  TeamRequests: undefined;
+  MyRequests: MyRequestsTabParams | undefined;
+  Task: undefined;
   Profile: undefined;
 };
 
@@ -50,6 +55,7 @@ export type MainStackParamList = {
   EmployeeDirectory: undefined;
   EmployeeDetail: { name: string };
   About: undefined;
+  Debug: undefined;
 };
 
 export type RootStackParamList = {

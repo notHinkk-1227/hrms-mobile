@@ -6,7 +6,7 @@
  */
 
 export const APP_NAME = 'Hadir by Sopwer';
-export const VERSION = '1.0.0';
+export const VERSION = '1.1.0';
 export const COMPANY_NAME = 'PT Sopwer Teknologi Indonesia';
 export const COMPANY_TAGLINE = 'Maksimalkan Potensi Karyawan';
 

@@ -1,7 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { FlatList, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
-import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { CheckSquare } from 'lucide-react-native';
+import { FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
+import { Check, CheckSquare, ChevronDown } from 'lucide-react-native';
+import { BottomSheet } from '@shared/components/BottomSheet';
 import { EmptyState } from '@shared/components/EmptyState';
 import { Screen } from '@shared/components/Screen';
 import { SkeletonList } from '@shared/components/Skeleton';
@@ -11,9 +12,7 @@ import { useAuthStore } from '@features/auth/store';
 import { todoApi, TodoItem, TodoStatus } from '@infrastructure/api/hrmsClient';
 import { ApiError } from '@infrastructure/api/errors';
 import { TodoSheet } from './TodoSheet';
-import type { MainStackParamList } from '@app/navigation/types';
 
-type Props = NativeStackScreenProps<MainStackParamList, 'TodoList'>;
 
 type StatusFilter = 'Open' | 'Closed' | 'all';
 type PriorityFilter = 'all' | 'High' | 'Medium' | 'Low';
@@ -97,7 +96,9 @@ function dueLabel(dateStr: string | null): string {
   return d.toLocaleDateString('id-ID', { day: 'numeric', month: 'short' });
 }
 
-export function TodoListScreen({ navigation }: Props): React.JSX.Element {
+export function TodoListScreen(): React.JSX.Element {
+  const navigation = useNavigation();
+  const canGoBack = navigation.canGoBack();
   const employee = useAuthStore((s) => s.employee);
   const userId = employee?.user_id ?? null;
   const [rows, setRows] = useState<TodoItem[]>([]);
@@ -108,6 +109,7 @@ export function TodoListScreen({ navigation }: Props): React.JSX.Element {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('Open');
   const [priorityFilter, setPriorityFilter] = useState<PriorityFilter>('all');
   const [dueFilter, setDueFilter] = useState<DueFilter>('all');
+  const [pickerOpen, setPickerOpen] = useState<'status' | 'priority' | 'due' | null>(null);
 
   const load = useCallback(async () => {
     if (!userId) return;
@@ -175,25 +177,94 @@ export function TodoListScreen({ navigation }: Props): React.JSX.Element {
 
   return (
     <Screen>
-      <FormHeader title="Tugas Saya" onBack={() => navigation.goBack()} />
+      <FormHeader title="Tugas Saya" onBack={canGoBack ? () => navigation.goBack() : undefined} />
 
       <View style={styles.filters}>
-        <CompactRow label="STATUS" chips={STATUS_CHIPS} active={statusFilter} onChange={setStatusFilter} />
-        <CompactRow label="PRIORITAS" chips={PRIORITY_CHIPS} active={priorityFilter} onChange={setPriorityFilter} />
-        <CompactRow label="TENGGAT" chips={DUE_CHIPS} active={dueFilter} onChange={setDueFilter} />
-        {activeFilterCount > 0 ? (
-          <Pressable
-            onPress={() => {
-              setStatusFilter('Open');
-              setPriorityFilter('all');
-              setDueFilter('all');
-            }}
-            hitSlop={8}
-          >
-            <Text style={styles.resetLink}>Reset filter ({activeFilterCount})</Text>
-          </Pressable>
-        ) : null}
+        <View style={styles.filterRow}>
+          <DimensionChip
+            label="Status"
+            value={STATUS_CHIPS.find((c) => c.key === statusFilter)?.label ?? 'Semua'}
+            active={statusFilter !== 'Open'}
+            onPress={() => setPickerOpen('status')}
+          />
+          <DimensionChip
+            label="Prioritas"
+            value={PRIORITY_CHIPS.find((c) => c.key === priorityFilter)?.label ?? 'Semua'}
+            active={priorityFilter !== 'all'}
+            onPress={() => setPickerOpen('priority')}
+          />
+          <DimensionChip
+            label="Tenggat"
+            value={DUE_CHIPS.find((c) => c.key === dueFilter)?.label ?? 'Semua'}
+            active={dueFilter !== 'all'}
+            onPress={() => setPickerOpen('due')}
+          />
+          {activeFilterCount > 0 ? (
+            <Pressable
+              onPress={() => {
+                setStatusFilter('Open');
+                setPriorityFilter('all');
+                setDueFilter('all');
+              }}
+              hitSlop={8}
+            >
+              <Text style={styles.resetLink}>Reset</Text>
+            </Pressable>
+          ) : null}
+        </View>
       </View>
+
+      <BottomSheet
+        visible={pickerOpen === 'status'}
+        title="Filter Status"
+        onClose={() => setPickerOpen(null)}
+      >
+        {STATUS_CHIPS.map((c) => (
+          <ValueRow
+            key={c.key}
+            label={c.label}
+            selected={c.key === statusFilter}
+            onPress={() => {
+              setStatusFilter(c.key);
+              setPickerOpen(null);
+            }}
+          />
+        ))}
+      </BottomSheet>
+      <BottomSheet
+        visible={pickerOpen === 'priority'}
+        title="Filter Prioritas"
+        onClose={() => setPickerOpen(null)}
+      >
+        {PRIORITY_CHIPS.map((c) => (
+          <ValueRow
+            key={c.key}
+            label={c.label}
+            selected={c.key === priorityFilter}
+            onPress={() => {
+              setPriorityFilter(c.key);
+              setPickerOpen(null);
+            }}
+          />
+        ))}
+      </BottomSheet>
+      <BottomSheet
+        visible={pickerOpen === 'due'}
+        title="Filter Tenggat"
+        onClose={() => setPickerOpen(null)}
+      >
+        {DUE_CHIPS.map((c) => (
+          <ValueRow
+            key={c.key}
+            label={c.label}
+            selected={c.key === dueFilter}
+            onPress={() => {
+              setDueFilter(c.key);
+              setPickerOpen(null);
+            }}
+          />
+        ))}
+      </BottomSheet>
 
       {loading ? (
         <View style={styles.skeletonWrap}>
@@ -261,48 +332,70 @@ export function TodoListScreen({ navigation }: Props): React.JSX.Element {
   );
 }
 
-interface CompactRowProps<T extends string> {
+interface DimensionChipProps {
   label: string;
-  chips: Array<{ key: T; label: string }>;
-  active: T;
-  onChange: (key: T) => void;
+  value: string;
+  active: boolean;
+  onPress: () => void;
 }
 
-function CompactRow<T extends string>({
-  label,
-  chips,
-  active,
-  onChange,
-}: CompactRowProps<T>): React.JSX.Element {
+function DimensionChip({ label, value, active, onPress }: DimensionChipProps): React.JSX.Element {
   return (
-    <View style={styles.compactRow}>
-      <Text style={styles.compactLabel}>{label}</Text>
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.compactScroll}
-      >
-        {chips.map((c) => {
-          const isActive = c.key === active;
-          return (
-            <Pressable
-              key={c.key}
-              onPress={() => onChange(c.key)}
-              style={[styles.compactChip, isActive && styles.compactChipActive]}
-              hitSlop={4}
-            >
-              <Text
-                style={[styles.compactChipText, isActive && styles.compactChipTextActive]}
-              >
-                {c.label}
-              </Text>
-            </Pressable>
-          );
-        })}
-      </ScrollView>
-    </View>
+    <Pressable
+      onPress={onPress}
+      style={[styles.dimChip, active && styles.dimChipActive]}
+      hitSlop={4}
+    >
+      <Text style={[styles.dimChipLabel, active && styles.dimChipLabelActive]}>
+        {label}:
+      </Text>
+      <Text style={[styles.dimChipValue, active && styles.dimChipValueActive]}>
+        {value}
+      </Text>
+      <ChevronDown
+        size={12}
+        color={active ? tokens.color.white : tokens.semantic.fg3}
+      />
+    </Pressable>
   );
 }
+
+interface ValueRowProps {
+  label: string;
+  selected: boolean;
+  onPress: () => void;
+}
+
+function ValueRow({ label, selected, onPress }: ValueRowProps): React.JSX.Element {
+  return (
+    <Pressable
+      onPress={onPress}
+      style={({ pressed }) => [
+        valueRowStyles.row,
+        pressed && valueRowStyles.rowPressed,
+      ]}
+    >
+      <Text style={[valueRowStyles.label, selected && valueRowStyles.labelSelected]}>
+        {label}
+      </Text>
+      {selected ? <Check size={18} color={tokens.semantic.brand} /> : null}
+    </Pressable>
+  );
+}
+
+const valueRowStyles = StyleSheet.create({
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: tokens.spacing.sp3,
+    borderBottomWidth: 1,
+    borderBottomColor: tokens.semantic.line,
+  },
+  rowPressed: { backgroundColor: tokens.semantic.surface2 },
+  label: { fontSize: tokens.fontSize.body, color: tokens.semantic.fg1 },
+  labelSelected: { fontWeight: '700', color: tokens.semantic.brand },
+});
 
 const styles = StyleSheet.create({
   filters: {
@@ -312,31 +405,44 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: tokens.semantic.line,
   },
-  compactRow: { flexDirection: 'row', alignItems: 'center', gap: tokens.spacing.sp2 },
-  compactLabel: {
-    fontFamily: tokens.font.mono,
-    fontSize: 10,
-    fontWeight: '700',
-    letterSpacing: 1,
-    color: tokens.semantic.fg3,
-    width: 64,
+  filterRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: tokens.spacing.sp1_5,
+    flexWrap: 'wrap',
   },
-  compactScroll: { gap: tokens.spacing.sp1, paddingRight: tokens.spacing.sp4 },
-  compactChip: {
+  dimChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
     paddingHorizontal: tokens.spacing.sp2,
-    paddingVertical: tokens.spacing.sp1,
+    paddingVertical: 6,
     borderRadius: tokens.radius.full,
     backgroundColor: tokens.semantic.surface2,
+    borderWidth: 1,
+    borderColor: tokens.semantic.line,
   },
-  compactChipActive: { backgroundColor: tokens.semantic.brand },
-  compactChipText: { fontSize: tokens.fontSize.caption, color: tokens.semantic.fg2, fontWeight: '600' },
-  compactChipTextActive: { color: tokens.color.white },
+  dimChipActive: {
+    backgroundColor: tokens.semantic.brand,
+    borderColor: tokens.semantic.brand,
+  },
+  dimChipLabel: {
+    fontSize: tokens.fontSize.caption,
+    color: tokens.semantic.fg3,
+    fontWeight: '600',
+  },
+  dimChipLabelActive: { color: 'rgba(255,255,255,0.85)' },
+  dimChipValue: {
+    fontSize: tokens.fontSize.caption,
+    color: tokens.semantic.fg1,
+    fontWeight: '700',
+  },
+  dimChipValueActive: { color: tokens.color.white },
   resetLink: {
     fontSize: tokens.fontSize.caption,
     color: tokens.semantic.brand,
     fontWeight: '600',
-    marginTop: tokens.spacing.sp1,
-    alignSelf: 'flex-end',
+    marginLeft: 'auto',
   },
   list: { paddingBottom: tokens.spacing.sp5, gap: tokens.spacing.sp2 },
   skeletonWrap: { paddingVertical: tokens.spacing.sp2 },

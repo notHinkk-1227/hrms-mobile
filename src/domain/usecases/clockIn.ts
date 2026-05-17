@@ -64,6 +64,11 @@ export interface ClockInUseCaseInput {
   deviceFingerprint: string;
   /** Kalau true, paksa submit meskipun di luar geofence. Default false. */
   overrideOutOfGeofence?: boolean;
+  /** Alasan kalau di luar geofence — wajib di enhanced mode soft-block. */
+  reasonOutsideLocation?: string;
+  /** Selfie base64 (data: URI atau pure base64). */
+  selfieBase64?: string;
+  integrity?: Partial<ClockInPayload['integrity']>;
 }
 
 export interface ClockInPreview {
@@ -104,17 +109,18 @@ export class ClockInUseCase {
       logType: input.logType,
       coordinate: preview.coordinate,
       integrity: {
-        isMockLocation: false,
-        isRootedDevice: false,
-        playIntegrityVerdict: 'Unknown',
+        isMockLocation: input.integrity?.isMockLocation ?? false,
+        isRootedDevice: input.integrity?.isRootedDevice ?? false,
+        playIntegrityVerdict: input.integrity?.playIntegrityVerdict ?? 'Unknown',
       },
       device: {
         deviceId: input.deviceId,
         deviceFingerprint: input.deviceFingerprint,
       },
-      selfieBase64: '',
+      selfieBase64: input.selfieBase64 ?? '',
       clientTimestamp: new Date().toISOString(),
       clientUuid: '',
+      reasonOutsideLocation: input.reasonOutsideLocation,
     };
 
     try {

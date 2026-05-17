@@ -2,7 +2,7 @@ import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { HomeStack } from './HomeStack';
 import { MyRequestsScreen } from '@features/my-requests/MyRequestsScreen';
-import { TeamRequestsScreen } from '@features/team-requests/TeamRequestsScreen';
+import { TaskListScreen } from '@features/task/TaskListScreen';
 import { ProfileScreen } from '@features/profile/ProfileScreen';
 import { BottomNav } from './BottomNav';
 import type { MainTabsParamList } from './types';
@@ -17,7 +17,7 @@ export function MainTabs(): React.JSX.Element {
     <Tab.Navigator screenOptions={{ headerShown: false }} tabBar={renderTabBar}>
       <Tab.Screen name="Home" component={HomeStack} />
       <Tab.Screen name="MyRequests" component={MyRequestsScreen} />
-      <Tab.Screen name="TeamRequests" component={TeamRequestsScreen} />
+      <Tab.Screen name="Task" component={TaskListScreen} />
       <Tab.Screen name="Profile" component={ProfileScreen} />
     </Tab.Navigator>
   );

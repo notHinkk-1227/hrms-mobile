@@ -6,15 +6,18 @@ import { tokens } from '@shared/theme/tokens';
 export interface FormHeaderProps {
   title: string;
   subtitle?: string;
-  onBack: () => void;
+  /** Kalau undefined, tombol back tidak tampil (untuk usage di tab root, bukan stack child) */
+  onBack?: () => void;
 }
 
 export function FormHeader({ title, subtitle, onBack }: FormHeaderProps): React.JSX.Element {
   return (
     <View style={styles.header}>
-      <Pressable onPress={onBack} style={styles.backBtn} hitSlop={12}>
-        <ArrowLeft size={24} color={tokens.semantic.fg1} />
-      </Pressable>
+      {onBack ? (
+        <Pressable onPress={onBack} style={styles.backBtn} hitSlop={12}>
+          <ArrowLeft size={24} color={tokens.semantic.fg1} />
+        </Pressable>
+      ) : null}
       <View style={styles.text}>
         <Text style={styles.title}>{title}</Text>
         {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}

@@ -4,7 +4,7 @@ import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { useNavigation } from '@react-navigation/native';
 import type { NavigationProp } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Home as HomeIcon, ListChecks, Plus, User, Users } from 'lucide-react-native';
+import { CheckSquare, Home as HomeIcon, ListChecks, Plus, User } from 'lucide-react-native';
 import { tokens } from '@shared/theme/tokens';
 import { QuickCreateSheet, QuickCreateAction } from '@shared/components/QuickCreateSheet';
 import type { MainStackParamList } from './types';
@@ -12,14 +12,14 @@ import type { MainStackParamList } from './types';
 const ICONS: Record<string, React.ComponentType<{ size: number; color: string }>> = {
   Home: HomeIcon,
   MyRequests: ListChecks,
-  TeamRequests: Users,
+  Task: CheckSquare,
   Profile: User,
 };
 
 const LABELS: Record<string, string> = {
   Home: 'Beranda',
   MyRequests: 'Permohonan',
-  TeamRequests: 'Tim',
+  Task: 'Task',
   Profile: 'Profil',
 };
 

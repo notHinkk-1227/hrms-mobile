@@ -21,6 +21,11 @@ export const StorageKeys = {
   ONBOARDING_SEEN: 'onboarding.seen',
   LOGIN_LOCK_UNTIL: 'auth.login_lock_until',
   LOGIN_FAILED_ATTEMPTS: 'auth.login_failed_attempts',
+  BIOMETRIC_ENABLED: 'auth.biometric_enabled',
+  BIOMETRIC_SESSION: 'auth.biometric_session',
+  LANGUAGE: 'i18n.language',
+  THEME: 'ui.theme',
+  BACKEND_FEATURES: 'features.backend',
 } as const;
 
 export type StorageKey = (typeof StorageKeys)[keyof typeof StorageKeys];

@@ -1,14 +1,17 @@
 import React from 'react';
-import { Alert, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Image, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NavigationProp } from '@react-navigation/native';
-import { Building2, Calendar, ChevronRight, FileText, Info, LogOut, Mail, User as UserIcon } from 'lucide-react-native';
+import { Building2, Calendar, ChevronRight, Fingerprint, FileText, Globe2, Info, LogOut, Mail, Palette, User as UserIcon } from 'lucide-react-native';
+import { THEMES, type ThemeKey } from '@shared/theme/themes';
+import { BottomSheet } from '@shared/components/BottomSheet';
 import { Gradient } from '@shared/components/Gradient';
 import { Screen } from '@shared/components/Screen';
 import { tokens } from '@shared/theme/tokens';
 import { getHost } from '@shared/utils/url';
 import { useAuthStore } from '@features/auth/store';
 import { logoutFromFrappe } from '@features/auth/authService';
+import { biometricService } from '@infrastructure/biometric/biometricService';
 import type { MainStackParamList } from '@app/navigation/types';
 import { getFullLabel } from '@config/appInfo';
 
@@ -26,7 +29,38 @@ export function ProfileScreen(): React.JSX.Element {
   const tenantName = useAuthStore((s) => s.tenantName);
   const tenantUrl = useAuthStore((s) => s.tenantUrl);
   const tenantCode = useAuthStore((s) => s.tenantCode);
+  const biometricEnabled = useAuthStore((s) => s.biometricEnabled);
+  const setBiometricEnabled = useAuthStore((s) => s.setBiometricEnabled);
+  const language = useAuthStore((s) => s.language);
+  const setLanguage = useAuthStore((s) => s.setLanguage);
+  const theme = useAuthStore((s) => s.theme);
+  const setTheme = useAuthStore((s) => s.setTheme);
   const logout = useAuthStore((s) => s.logout);
+
+  const [biometricLabel, setBiometricLabel] = React.useState<string | null>(null);
+  const [langSheetOpen, setLangSheetOpen] = React.useState(false);
+  const [themeSheetOpen, setThemeSheetOpen] = React.useState(false);
+
+  React.useEffect(() => {
+    biometricService.isAvailable().then(({ available, biometryType }) => {
+      if (available) setBiometricLabel(biometricService.labelFor(biometryType));
+    });
+  }, []);
+
+  const toggleBiometric = async (next: boolean) => {
+    if (!next) {
+      setBiometricEnabled(false);
+      return;
+    }
+    const { success } = await biometricService.prompt(
+      'Konfirmasi untuk mengaktifkan login biometrik',
+    );
+    if (success) {
+      setBiometricEnabled(true);
+    } else {
+      Alert.alert('Gagal', 'Konfirmasi biometrik dibatalkan.');
+    }
+  };
 
   const onLogout = () => {
     Alert.alert('Keluar dari aplikasi?', 'Anda akan diminta login ulang.', [
@@ -106,6 +140,32 @@ export function ProfileScreen(): React.JSX.Element {
             hint="Kalender per bulan"
             onPress={() => parent.navigate('MyAttendance')}
           />
+          {biometricLabel ? (
+            <View style={menuStyles.biometricRow}>
+              <Fingerprint size={20} color={tokens.semantic.brand} />
+              <View style={menuStyles.text}>
+                <Text style={menuStyles.label}>Login Biometrik</Text>
+                <Text style={menuStyles.hint}>{biometricLabel}</Text>
+              </View>
+              <Switch
+                value={biometricEnabled}
+                onValueChange={toggleBiometric}
+                trackColor={{ false: tokens.color.ink200, true: tokens.color.green500 }}
+              />
+            </View>
+          ) : null}
+          <MenuRow
+            icon={<Globe2 size={20} color={tokens.semantic.fg2} />}
+            label="Bahasa"
+            hint={language === 'en' ? 'English' : 'Bahasa Indonesia'}
+            onPress={() => setLangSheetOpen(true)}
+          />
+          <MenuRow
+            icon={<Palette size={20} color={THEMES[theme].brand} />}
+            label="Tema Warna"
+            hint={`${THEMES[theme].label} · butuh restart`}
+            onPress={() => setThemeSheetOpen(true)}
+          />
           <MenuRow
             icon={<Info size={20} color={tokens.semantic.fg2} />}
             label="Tentang Aplikasi"
@@ -113,6 +173,75 @@ export function ProfileScreen(): React.JSX.Element {
             onPress={() => parent.navigate('About')}
           />
         </View>
+
+        <BottomSheet
+          visible={langSheetOpen}
+          title="Pilih Bahasa"
+          onClose={() => setLangSheetOpen(false)}
+        >
+          <Pressable
+            onPress={() => {
+              setLanguage('id');
+              setLangSheetOpen(false);
+            }}
+            style={({ pressed }) => [langStyles.row, pressed && langStyles.rowPressed]}
+          >
+            <Text style={[langStyles.label, language === 'id' && langStyles.labelActive]}>
+              🇮🇩  Bahasa Indonesia
+            </Text>
+            {language === 'id' ? <Text style={langStyles.check}>✓</Text> : null}
+          </Pressable>
+          <Pressable
+            onPress={() => {
+              setLanguage('en');
+              setLangSheetOpen(false);
+            }}
+            style={({ pressed }) => [langStyles.row, pressed && langStyles.rowPressed]}
+          >
+            <Text style={[langStyles.label, language === 'en' && langStyles.labelActive]}>
+              🇬🇧  English
+            </Text>
+            {language === 'en' ? <Text style={langStyles.check}>✓</Text> : null}
+          </Pressable>
+          <Text style={langStyles.note}>
+            Catatan: terjemahan English masih dalam pengembangan; sebagian teks
+            UI mungkin tetap Bahasa Indonesia.
+          </Text>
+        </BottomSheet>
+
+        <BottomSheet
+          visible={themeSheetOpen}
+          title="Pilih Tema Warna"
+          onClose={() => setThemeSheetOpen(false)}
+        >
+          {(Object.keys(THEMES) as ThemeKey[]).map((key) => {
+            const t = THEMES[key];
+            const active = key === theme;
+            return (
+              <Pressable
+                key={key}
+                onPress={() => {
+                  setTheme(key);
+                  setThemeSheetOpen(false);
+                  Alert.alert(
+                    'Restart Aplikasi',
+                    'Tutup dan buka aplikasi untuk menerapkan tema baru.',
+                  );
+                }}
+                style={({ pressed }) => [themeStyles.row, pressed && themeStyles.rowPressed]}
+              >
+                <View style={[themeStyles.swatch, { backgroundColor: t.brand }]} />
+                <Text style={[themeStyles.label, active && themeStyles.labelActive]}>
+                  {t.label}
+                </Text>
+                {active ? <Text style={themeStyles.check}>✓</Text> : null}
+              </Pressable>
+            );
+          })}
+          <Text style={langStyles.note}>
+            Ganti tema membutuhkan tutup-buka aplikasi untuk berlaku penuh.
+          </Text>
+        </BottomSheet>
 
         <View style={styles.infoCard}>
           <Text style={styles.sectionTitle}>Informasi Karyawan</Text>
@@ -201,6 +330,50 @@ function InfoRow({ icon, label, value }: InfoRowProps): React.JSX.Element {
   );
 }
 
+const themeStyles = StyleSheet.create({
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: tokens.spacing.sp3,
+    paddingVertical: tokens.spacing.sp3,
+    borderBottomWidth: 1,
+    borderBottomColor: tokens.semantic.line,
+  },
+  rowPressed: { backgroundColor: tokens.semantic.surface2 },
+  swatch: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    borderWidth: 2,
+    borderColor: tokens.semantic.line,
+  },
+  label: { flex: 1, fontSize: tokens.fontSize.body, color: tokens.semantic.fg1 },
+  labelActive: { fontWeight: '700', color: tokens.semantic.brand },
+  check: { fontSize: 18, color: tokens.semantic.brand, fontWeight: '700' },
+});
+
+const langStyles = StyleSheet.create({
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: tokens.spacing.sp3,
+    borderBottomWidth: 1,
+    borderBottomColor: tokens.semantic.line,
+  },
+  rowPressed: { backgroundColor: tokens.semantic.surface2 },
+  label: { fontSize: tokens.fontSize.body, color: tokens.semantic.fg1 },
+  labelActive: { fontWeight: '700', color: tokens.semantic.brand },
+  check: { fontSize: 18, color: tokens.semantic.brand, fontWeight: '700' },
+  note: {
+    marginTop: tokens.spacing.sp3,
+    fontSize: tokens.fontSize.caption,
+    color: tokens.semantic.fg3,
+    fontStyle: 'italic',
+    lineHeight: tokens.lineHeight.small,
+  },
+});
+
 const menuStyles = StyleSheet.create({
   row: {
     flexDirection: 'row',
@@ -212,6 +385,15 @@ const menuStyles = StyleSheet.create({
     borderBottomColor: tokens.semantic.line,
   },
   rowPressed: { backgroundColor: tokens.semantic.surface2 },
+  biometricRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: tokens.spacing.sp3,
+    paddingVertical: tokens.spacing.sp3,
+    paddingHorizontal: tokens.spacing.sp3,
+    borderBottomWidth: 1,
+    borderBottomColor: tokens.semantic.line,
+  },
   text: { flex: 1 },
   label: { fontSize: tokens.fontSize.body, fontWeight: '600', color: tokens.semantic.fg1 },
   hint: { fontSize: tokens.fontSize.caption, color: tokens.semantic.fg3 },

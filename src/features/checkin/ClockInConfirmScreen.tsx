@@ -5,12 +5,14 @@ import { AlertCircle, Camera as CameraIcon, MapPin, Navigation } from 'lucide-re
 import { Button } from '@shared/components/Button';
 import { GeofencePill } from '@shared/components/GeofencePill';
 import { Screen } from '@shared/components/Screen';
+import { TextField } from '@shared/components/TextField';
 import { useToast } from '@shared/components/Toast';
 import { tokens } from '@shared/theme/tokens';
 import { useAuthStore } from '@features/auth/store';
 import { ClockInUseCase, ClockInPreview } from '@domain/usecases/clockIn';
 import { locationService } from '@infrastructure/location/locationService';
 import { checkinClient, getAllowedLocationsForToday } from '@infrastructure/api/checkinClient';
+import { useFeaturesStore } from '@infrastructure/api/featureDetect';
 import { uploadFile } from '@infrastructure/api/uploadClient';
 import { getDeviceFingerprint, getDeviceId } from '@infrastructure/device/deviceInfo';
 import type { HomeStackParamList } from '@app/navigation/types';
@@ -37,6 +39,12 @@ export function ClockInConfirmScreen({ navigation, route }: Props): React.JSX.El
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [reasonOutside, setReasonOutside] = useState('');
+  const features = useFeaturesStore((s) => s.features);
+  const isOutside = !!(preview?.nearest && !preview.nearest.inside);
+  const showReasonField =
+    features.hasSopwerHrms && features.geofence && isOutside;
+  const reasonRequired = showReasonField && features.softBlockOutsideGeofence;
 
   const loadPreview = useCallback(async () => {
     if (!employee?.name) {
@@ -74,6 +82,7 @@ export function ClockInConfirmScreen({ navigation, route }: Props): React.JSX.El
           deviceId,
           deviceFingerprint: fingerprint,
           overrideOutOfGeofence: override,
+          reasonOutsideLocation: reasonOutside.trim() || undefined,
         },
         preview,
       );
@@ -225,11 +234,37 @@ export function ClockInConfirmScreen({ navigation, route }: Props): React.JSX.El
               <Text style={styles.locationDistance}>Presensi tetap bisa dikirim.</Text>
             </View>
           )}
+
+          {showReasonField ? (
+            <View style={styles.reasonBox}>
+              <TextField
+                label={`Alasan presensi di luar lokasi${reasonRequired ? ' *' : ''}`}
+                value={reasonOutside}
+                onChangeText={setReasonOutside}
+                placeholder="Contoh: kunjungan klien, kerja lapangan, dst"
+                multiline
+                numberOfLines={3}
+                hint="Diteruskan ke HR untuk review presensi Anda."
+                error={
+                  reasonRequired && submitting === false && reasonOutside.trim().length === 0
+                    ? undefined
+                    : undefined
+                }
+              />
+            </View>
+          ) : null}
         </View>
       ) : null}
 
       <View style={styles.cta}>
-        <Button fullWidth onPress={() => doSubmit(false)} loading={submitting} disabled={!preview || loading}>
+        <Button
+          fullWidth
+          onPress={() => doSubmit(false)}
+          loading={submitting}
+          disabled={
+            !preview || loading || (reasonRequired && reasonOutside.trim().length === 0)
+          }
+        >
           Kirim Presensi
         </Button>
         <Button variant="ghost" fullWidth onPress={() => navigation.goBack()} disabled={submitting}>
@@ -330,6 +365,7 @@ const styles = StyleSheet.create({
   },
   locationRow: { flexDirection: 'row', alignItems: 'center', gap: tokens.spacing.sp2 },
   locationStatus: { fontSize: tokens.fontSize.h4, fontWeight: '700' },
+  reasonBox: { marginTop: tokens.spacing.sp3 },
   locationDetailRow: { flexDirection: 'row', alignItems: 'center', gap: tokens.spacing.sp1 },
   locationName: { fontSize: tokens.fontSize.body, color: tokens.semantic.fg1, fontWeight: '600' },
   locationDistance: { fontSize: tokens.fontSize.small, color: tokens.semantic.fg3 },

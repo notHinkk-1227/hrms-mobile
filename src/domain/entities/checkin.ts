@@ -44,6 +44,10 @@ export interface ClockInPayload {
   selfieBase64: string;
   clientTimestamp: string; // ISO 8601
   clientUuid: string;
+  /** Alasan kalau di luar radius geofence — wajib di enhanced mode soft-block. */
+  reasonOutsideLocation?: string;
+  /** Employee ID — caller wajib isi (use case level). */
+  employee?: string;
 }
 
 /** Response dari server setelah clock-in sukses (server-authoritative). */

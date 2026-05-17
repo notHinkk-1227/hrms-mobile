@@ -1,7 +1,7 @@
 import React from 'react';
 import { Image, Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { Building2, Globe, Mail } from 'lucide-react-native';
+import { Building2, Globe, Mail, Shield } from 'lucide-react-native';
 import { Screen } from '@shared/components/Screen';
 import { FormHeader } from '@features/forms/FormHeader';
 import { tokens } from '@shared/theme/tokens';
@@ -11,6 +11,7 @@ import {
   COMPANY_TAGLINE,
   getVersionLabel,
 } from '@config/appInfo';
+import { CHANGELOG, formatChangelogDate } from '@config/changelog';
 import type { MainStackParamList } from '@app/navigation/types';
 
 type Props = NativeStackScreenProps<MainStackParamList, 'About'>;
@@ -30,7 +31,13 @@ export function AboutScreen({ navigation }: Props): React.JSX.Element {
             <Image source={LOGO_FULL} style={styles.logoImage} resizeMode="contain" />
           </View>
           <Text style={styles.appName}>{APP_NAME}</Text>
-          <Text style={styles.version}>{getVersionLabel()}</Text>
+          <Text
+            style={styles.version}
+            onLongPress={() => navigation.navigate('Debug')}
+            suppressHighlighting
+          >
+            {getVersionLabel()}
+          </Text>
           <Text style={styles.tagline}>{COMPANY_TAGLINE}</Text>
         </View>
 
@@ -66,11 +73,59 @@ export function AboutScreen({ navigation }: Props): React.JSX.Element {
             <Row
               icon={<Mail size={18} color={tokens.semantic.fg3} />}
               label="Email"
-              value="halo@sopwer.id"
+              value="hi@sopwer.net"
               onPress={() =>
-                Linking.openURL('mailto:halo@sopwer.id').catch(() => undefined)
+                Linking.openURL('mailto:hi@sopwer.net').catch(() => undefined)
               }
             />
+          </View>
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionLabel}>KEBIJAKAN PRIVASI</Text>
+          <View style={styles.card}>
+            <View style={styles.privacyHeader}>
+              <Shield size={18} color={tokens.semantic.brand} />
+              <Text style={styles.privacyTitle}>Data Anda aman bersama kami</Text>
+            </View>
+            <Text style={styles.body}>
+              {APP_NAME} hanya mengumpulkan data yang diperlukan untuk fungsi
+              presensi: lokasi GPS saat clock-in, foto selfie verifikasi, dan
+              identitas perangkat. Semua data disimpan di server perusahaan
+              Anda — bukan di server Sopwer. Lokasi GPS hanya diakses saat
+              aplikasi terbuka dan tidak dilacak di latar belakang.
+            </Text>
+            <Pressable
+              onPress={() =>
+                Linking.openURL('https://sopwer.id/privacy').catch(() => undefined)
+              }
+              hitSlop={4}
+            >
+              <Text style={styles.privacyLink}>Baca lengkap di sopwer.id/privacy →</Text>
+            </Pressable>
+          </View>
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionLabel}>RIWAYAT VERSI</Text>
+          <View style={styles.card}>
+            {CHANGELOG.map((entry, idx) => (
+              <View
+                key={entry.version}
+                style={[styles.changelogEntry, idx > 0 && styles.changelogEntryDivider]}
+              >
+                <View style={styles.changelogHeader}>
+                  <Text style={styles.changelogVersion}>v{entry.version}</Text>
+                  <Text style={styles.changelogDate}>{formatChangelogDate(entry.date)}</Text>
+                </View>
+                {entry.items.map((item, i) => (
+                  <View key={i} style={styles.bulletRow}>
+                    <Text style={styles.bullet}>•</Text>
+                    <Text style={styles.bulletText}>{item}</Text>
+                  </View>
+                ))}
+              </View>
+            ))}
           </View>
         </View>
 
@@ -186,6 +241,63 @@ const styles = StyleSheet.create({
     fontSize: tokens.fontSize.small,
     color: tokens.semantic.fg3,
     textAlign: 'center',
+    lineHeight: tokens.lineHeight.small,
+  },
+  privacyHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: tokens.spacing.sp2,
+  },
+  privacyTitle: {
+    fontSize: tokens.fontSize.body,
+    fontWeight: '700',
+    color: tokens.semantic.fg1,
+  },
+  privacyLink: {
+    fontSize: tokens.fontSize.small,
+    color: tokens.semantic.brand,
+    fontWeight: '600',
+  },
+  changelogEntry: {
+    gap: tokens.spacing.sp1,
+  },
+  changelogEntryDivider: {
+    paddingTop: tokens.spacing.sp3,
+    borderTopWidth: 1,
+    borderTopColor: tokens.semantic.line,
+  },
+  changelogHeader: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    justifyContent: 'space-between',
+    marginBottom: tokens.spacing.sp1,
+  },
+  changelogVersion: {
+    fontFamily: tokens.font.mono,
+    fontSize: tokens.fontSize.body,
+    fontWeight: '800',
+    color: tokens.semantic.brand,
+  },
+  changelogDate: {
+    fontFamily: tokens.font.mono,
+    fontSize: tokens.fontSize.caption,
+    color: tokens.semantic.fg3,
+    fontWeight: '600',
+  },
+  bulletRow: {
+    flexDirection: 'row',
+    gap: tokens.spacing.sp2,
+  },
+  bullet: {
+    fontSize: tokens.fontSize.small,
+    color: tokens.semantic.brand,
+    fontWeight: '700',
+    width: 12,
+  },
+  bulletText: {
+    flex: 1,
+    fontSize: tokens.fontSize.small,
+    color: tokens.semantic.fg2,
     lineHeight: tokens.lineHeight.small,
   },
 });

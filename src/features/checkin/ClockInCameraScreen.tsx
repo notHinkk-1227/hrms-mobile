@@ -32,6 +32,21 @@ export function ClockInCameraScreen({ navigation, route }: Props): React.JSX.Ele
   const [photoPath, setPhotoPath] = useState<string | null>(null);
   const [capturing, setCapturing] = useState(false);
   const [permissionAsked, setPermissionAsked] = useState(false);
+  const [tick, setTick] = useState(0);
+
+  useEffect(() => {
+    const id = setInterval(() => setTick((t) => t + 1), 1000);
+    return () => clearInterval(id);
+  }, []);
+
+  const liveStamp = (() => {
+    const d = new Date();
+    const pad = (n: number) => String(n).padStart(2, '0');
+    const time = `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+    const date = d.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' });
+    return `${time} · ${date.toUpperCase()}`;
+  })();
+  void tick; // keep linter happy on tick dep
 
   useEffect(() => {
     if (!hasPermission && !permissionAsked) {
@@ -128,6 +143,17 @@ export function ClockInCameraScreen({ navigation, route }: Props): React.JSX.Ele
         <View style={styles.iconBtn} />
       </View>
 
+      {!photoPath ? (
+        <View style={styles.faceGuideWrap} pointerEvents="none">
+          <View style={styles.faceOval} />
+          <View style={[styles.corner, styles.cornerTL]} />
+          <View style={[styles.corner, styles.cornerTR]} />
+          <View style={[styles.corner, styles.cornerBL]} />
+          <View style={[styles.corner, styles.cornerBR]} />
+          <Text style={styles.stamp}>{liveStamp}</Text>
+        </View>
+      ) : null}
+
       <View style={[styles.bottomBar, { paddingBottom: insets.bottom + tokens.spacing.sp4 }]}>
         {photoPath ? (
           <View style={styles.actionsRow}>
@@ -208,6 +234,71 @@ const styles = StyleSheet.create({
     paddingTop: tokens.spacing.sp4,
     paddingHorizontal: tokens.spacing.sp4,
     backgroundColor: 'rgba(0,0,0,0.55)',
+  },
+  faceGuideWrap: {
+    position: 'absolute',
+    top: '18%',
+    left: 0,
+    right: 0,
+    alignItems: 'center',
+  },
+  faceOval: {
+    width: 240,
+    height: 320,
+    borderRadius: 160,
+    borderWidth: 2,
+    borderColor: 'rgba(255,255,255,0.7)',
+  },
+  corner: {
+    position: 'absolute',
+    width: 24,
+    height: 24,
+    borderColor: tokens.color.yellow300,
+  },
+  cornerTL: {
+    top: 0,
+    left: '50%',
+    marginLeft: -120 - 4,
+    borderTopWidth: 3,
+    borderLeftWidth: 3,
+    borderTopLeftRadius: 12,
+  },
+  cornerTR: {
+    top: 0,
+    left: '50%',
+    marginLeft: 120 - 24 + 4,
+    borderTopWidth: 3,
+    borderRightWidth: 3,
+    borderTopRightRadius: 12,
+  },
+  cornerBL: {
+    top: 320 - 24,
+    left: '50%',
+    marginLeft: -120 - 4,
+    borderBottomWidth: 3,
+    borderLeftWidth: 3,
+    borderBottomLeftRadius: 12,
+  },
+  cornerBR: {
+    top: 320 - 24,
+    left: '50%',
+    marginLeft: 120 - 24 + 4,
+    borderBottomWidth: 3,
+    borderRightWidth: 3,
+    borderBottomRightRadius: 12,
+  },
+  stamp: {
+    marginTop: tokens.spacing.sp3,
+    fontFamily: tokens.font.mono,
+    fontSize: 11,
+    fontWeight: '700',
+    color: tokens.color.white,
+    letterSpacing: 1.5,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    borderRadius: tokens.radius.sm,
+    overflow: 'hidden',
   },
   shutter: {
     width: 76,

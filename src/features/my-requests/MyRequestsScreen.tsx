@@ -8,8 +8,8 @@ import {
   Text,
   View,
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
-import type { NavigationProp } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
+import type { NavigationProp, RouteProp } from '@react-navigation/native';
 import { Inbox } from 'lucide-react-native';
 import { EmptyState } from '@shared/components/EmptyState';
 import { Screen } from '@shared/components/Screen';
@@ -22,9 +22,10 @@ import {
   getStatusLabel,
   getStatusVariant,
   listMyRequests,
+  listTeamRequests,
 } from '@infrastructure/api/requestsClient';
 import type { RequestSummary } from '@infrastructure/api/hrmsClient';
-import type { MainStackParamList } from '@app/navigation/types';
+import type { MainStackParamList, MainTabsParamList } from '@app/navigation/types';
 
 const TABS = [
   { key: 'all', label: 'Semua', doctype: null },
@@ -45,30 +46,50 @@ function formatDate(iso: string): string {
 
 export function MyRequestsScreen(): React.JSX.Element {
   const employee = useAuthStore((s) => s.employee);
+  const user = useAuthStore((s) => s.user);
   const parent = useNavigation<NavigationProp<MainStackParamList>>();
+  const route = useRoute<RouteProp<MainTabsParamList, 'MyRequests'>>();
   const year = new Date().getFullYear();
 
   const [items, setItems] = useState<RequestSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [activeTab, setActiveTab] = useState<string>('all');
+  const [mode, setMode] = useState<'mine' | 'team'>('mine');
   const [error, setError] = useState<string | null>(null);
 
+  // Apply route params (from QA tile navigate)
+  useEffect(() => {
+    const incomingFilter = route.params?.filterDoctype;
+    if (incomingFilter) {
+      const tab = TABS.find((t) => t.doctype === incomingFilter);
+      if (tab) setActiveTab(tab.key);
+    }
+    if (route.params?.mode) setMode(route.params.mode);
+  }, [route.params?.filterDoctype, route.params?.mode]);
+
   const load = useCallback(async () => {
-    if (!employee?.name) return;
     setError(null);
     try {
-      const data = await listMyRequests(employee.name);
-      setItems(data);
+      if (mode === 'team') {
+        if (!user) return;
+        const data = await listTeamRequests(user);
+        setItems(data);
+      } else {
+        if (!employee?.name) return;
+        const data = await listMyRequests(employee.name);
+        setItems(data);
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Gagal memuat permohonan');
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [employee?.name]);
+  }, [employee?.name, user, mode]);
 
   useEffect(() => {
+    setLoading(true);
     load();
   }, [load]);
 
@@ -85,9 +106,26 @@ export function MyRequestsScreen(): React.JSX.Element {
       <View style={styles.header}>
         <View style={styles.titleRow}>
           <View style={styles.titleCol}>
-            <Text style={styles.title}>Permohonan Saya</Text>
+            <Text style={styles.title}>
+              {mode === 'team' ? 'Permohonan Tim' : 'Permohonan Saya'}
+            </Text>
             <Text style={styles.subtitle}>{`${items.length} PERMOHONAN · ${year}`}</Text>
           </View>
+        </View>
+
+        <View style={styles.modeRow}>
+          <Pressable
+            onPress={() => setMode('mine')}
+            style={[styles.modeBtn, mode === 'mine' && styles.modeBtnActive]}
+          >
+            <Text style={[styles.modeText, mode === 'mine' && styles.modeTextActive]}>Saya</Text>
+          </Pressable>
+          <Pressable
+            onPress={() => setMode('team')}
+            style={[styles.modeBtn, mode === 'team' && styles.modeBtnActive]}
+          >
+            <Text style={[styles.modeText, mode === 'team' && styles.modeTextActive]}>Tim</Text>
+          </Pressable>
         </View>
         <ScrollView
           horizontal
@@ -144,7 +182,10 @@ export function MyRequestsScreen(): React.JSX.Element {
             <Pressable
               style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
               onPress={() =>
-                parent.navigate('RequestDetail', { doctype: item.doctype, name: item.name })
+                parent.navigate(
+                  mode === 'team' ? 'TeamRequestDetail' : 'RequestDetail',
+                  { doctype: item.doctype, name: item.name },
+                )
               }
             >
               <View style={styles.rowMeta}>
@@ -196,6 +237,24 @@ const styles = StyleSheet.create({
     letterSpacing: 1,
     color: tokens.semantic.fg3,
   },
+  modeRow: {
+    flexDirection: 'row',
+    backgroundColor: tokens.semantic.surface2,
+    borderRadius: tokens.radius.md,
+    padding: 3,
+    alignSelf: 'flex-start',
+  },
+  modeBtn: {
+    paddingHorizontal: tokens.spacing.sp4,
+    paddingVertical: tokens.spacing.sp2,
+    borderRadius: tokens.radius.sm,
+  },
+  modeBtnActive: {
+    backgroundColor: tokens.semantic.surface,
+    ...tokens.shadow.sm,
+  },
+  modeText: { fontSize: tokens.fontSize.small, color: tokens.semantic.fg3, fontWeight: '600' },
+  modeTextActive: { color: tokens.semantic.fg1, fontWeight: '700' },
   tabs: { flexDirection: 'row', gap: tokens.spacing.sp2, paddingRight: tokens.spacing.sp4 },
   tab: {
     flexDirection: 'row',

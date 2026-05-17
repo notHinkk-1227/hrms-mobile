@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { CompositeScreenProps, NavigationProp } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
@@ -33,6 +33,8 @@ import {
 import type { RequestSummary } from '@infrastructure/api/hrmsClient';
 import { todoApi, TodoItem } from '@infrastructure/api/hrmsClient';
 import { notificationsApi } from '@infrastructure/api/notificationsClient';
+import { realtimeService } from '@infrastructure/realtime/realtimeService';
+import { useToast } from '@shared/components/Toast';
 import { TodoSheet } from '@features/todo/TodoSheet';
 import type { HomeStackParamList, MainStackParamList, MainTabsParamList } from '@app/navigation/types';
 import type { AllowedLocation, LogType } from '@domain/entities/checkin';
@@ -84,21 +86,25 @@ interface QaTile {
   label: string;
   icon: React.ComponentType<{ size?: number; color?: string }>;
   tone: QaTone;
-  target: keyof MainStackParamList;
+  /** Salah satu: ('requestFilter' → buka MyRequests tab dengan filter doctype) atau ('stackRoute' → langsung navigate MainStack screen) atau ('taskTab' → buka Task tab) */
+  action:
+    | { kind: 'requestFilter'; doctype: string }
+    | { kind: 'stackRoute'; route: keyof MainStackParamList }
+    | { kind: 'taskTab' };
 }
 
 const QA_ROWS: QaTile[][] = [
   [
-    { key: 'leave', label: 'Cuti', icon: Calendar, tone: 'blue', target: 'ApplyLeave' },
-    { key: 'expense', label: 'Klaim', icon: Wallet, tone: 'green', target: 'ApplyExpense' },
-    { key: 'advance', label: 'Kasbon', icon: DollarSign, tone: 'amber', target: 'ApplyAdvance' },
-    { key: 'koreksi', label: 'Presensi', icon: Clock, tone: 'dark', target: 'MyAttendance' },
+    { key: 'leave', label: 'Cuti', icon: Calendar, tone: 'blue', action: { kind: 'requestFilter', doctype: 'Leave Application' } },
+    { key: 'expense', label: 'Klaim', icon: Wallet, tone: 'green', action: { kind: 'requestFilter', doctype: 'Expense Claim' } },
+    { key: 'advance', label: 'Kasbon', icon: DollarSign, tone: 'amber', action: { kind: 'requestFilter', doctype: 'Employee Advance' } },
+    { key: 'koreksi', label: 'Presensi', icon: Clock, tone: 'dark', action: { kind: 'stackRoute', route: 'MyAttendance' } },
   ],
   [
-    { key: 'shift', label: 'Shift', icon: RefreshCw, tone: 'blue', target: 'RequestShift' },
-    { key: 'todo', label: 'ToDo', icon: CheckSquare, tone: 'amber', target: 'TodoList' },
-    { key: 'calendar', label: 'Kalender', icon: CalendarDays, tone: 'green', target: 'TeamCalendar' },
-    { key: 'employee', label: 'Karyawan', icon: Users, tone: 'dark', target: 'EmployeeDirectory' },
+    { key: 'shift', label: 'Shift', icon: RefreshCw, tone: 'blue', action: { kind: 'requestFilter', doctype: 'Shift Request' } },
+    { key: 'todo', label: 'ToDo', icon: CheckSquare, tone: 'amber', action: { kind: 'stackRoute', route: 'TodoList' } },
+    { key: 'calendar', label: 'Kalender', icon: CalendarDays, tone: 'green', action: { kind: 'stackRoute', route: 'TeamCalendar' } },
+    { key: 'employee', label: 'Karyawan', icon: Users, tone: 'dark', action: { kind: 'stackRoute', route: 'EmployeeDirectory' } },
   ],
 ];
 
@@ -144,6 +150,7 @@ export function HomeScreen({ navigation }: Props): React.JSX.Element {
   const [lastCheckin, setLastCheckin] = useState<FrappeEmployeeCheckin | null>(null);
   const [recentRequests, setRecentRequests] = useState<RequestSummary[]>([]);
   const [nearest, setNearest] = useState<NearestLocation | null>(null);
+  const [gpsOk, setGpsOk] = useState<boolean>(false);
   const [todos, setTodos] = useState<TodoItem[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [selectedTodo, setSelectedTodo] = useState<TodoItem | null>(null);
@@ -179,11 +186,15 @@ export function HomeScreen({ navigation }: Props): React.JSX.Element {
     if (!employee?.name) return;
     try {
       const granted = await locationService.hasPermission();
-      if (!granted) return;
-      const [pos, locations] = await Promise.all([
-        locationService.getCurrentPosition({ timeoutMs: 8000 }),
-        getAllowedLocationsForToday(employee.name).catch<AllowedLocation[]>(() => []),
-      ]);
+      if (!granted) {
+        setGpsOk(false);
+        return;
+      }
+      const pos = await locationService.getCurrentPosition({ timeoutMs: 8000 });
+      setGpsOk(true); // GPS aktif + dapat posisi — sudah cukup untuk indicator
+      const locations = await getAllowedLocationsForToday(employee.name).catch<AllowedLocation[]>(
+        () => [],
+      );
       if (locations.length === 0) return;
       let best: NearestLocation | null = null;
       for (const loc of locations) {
@@ -203,6 +214,52 @@ export function HomeScreen({ navigation }: Props): React.JSX.Element {
     loadNearestLocation();
   }, [loadAll, loadNearestLocation]);
 
+  useFocusEffect(
+    useCallback(() => {
+      const userId = employee?.user_id;
+      if (!userId) return;
+      notificationsApi
+        .countUnread(userId)
+        .then(setUnreadCount)
+        .catch(() => undefined);
+    }, [employee?.user_id]),
+  );
+
+  // Realtime: dengar event `notification` dari Frappe socket.io. Saat ada
+  // task/assign baru: refresh badge + tampil toast singkat.
+  const toast = useToast();
+  useEffect(() => {
+    const userId = employee?.user_id;
+    if (!userId) return;
+    return realtimeService.subscribe((event) => {
+      if (event.type !== 'notification') return;
+      notificationsApi
+        .countUnread(userId)
+        .then(setUnreadCount)
+        .catch(() => undefined);
+      toast.show({
+        variant: 'info',
+        title: 'Notifikasi baru',
+        message: 'Ada pemberitahuan masuk — buka untuk lihat detail',
+      });
+    });
+  }, [employee?.user_id, toast]);
+
+  // Polling fallback: kalau socket.io tidak tersambung (Frappe socketio butuh
+  // session cookie, mobile pakai API key — bisa gagal handshake), tetap
+  // refresh unread count setiap 60 detik supaya badge ngk stale.
+  useEffect(() => {
+    const userId = employee?.user_id;
+    if (!userId) return;
+    const id = setInterval(() => {
+      notificationsApi
+        .countUnread(userId)
+        .then(setUnreadCount)
+        .catch(() => undefined);
+    }, 60_000);
+    return () => clearInterval(id);
+  }, [employee?.user_id]);
+
   const onRefresh = useCallback(() => {
     setRefreshing(true);
     loadAll();
@@ -215,6 +272,14 @@ export function HomeScreen({ navigation }: Props): React.JSX.Element {
   if (lastCheckin?.log_type === 'IN') heroState = 'in_progress';
   if (lastCheckin?.log_type === 'OUT') heroState = 'done';
 
+  const checkInTime = lastCheckin
+    ? (() => {
+        const d = new Date(lastCheckin.time.replace(' ', 'T'));
+        const pad = (n: number) => String(n).padStart(2, '0');
+        return `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+      })()
+    : undefined;
+
   const locationLine = nearest
     ? heroState === 'in_progress' || heroState === 'done'
       ? `Terverifikasi · ${nearest.name}`
@@ -225,8 +290,14 @@ export function HomeScreen({ navigation }: Props): React.JSX.Element {
     navigation.navigate('ClockInCamera', { logType: nextLogType });
   };
 
-  const goQa = (target: keyof MainStackParamList) => {
-    parent.navigate(target as never);
+  const goQa = (action: QaTile['action']) => {
+    if (action.kind === 'requestFilter') {
+      tabsNav.navigate('MyRequests', { filterDoctype: action.doctype, mode: 'mine' });
+    } else if (action.kind === 'taskTab') {
+      tabsNav.navigate('Task');
+    } else {
+      parent.navigate(action.route as never);
+    }
   };
 
   const handleTodoDone = async (todo: TodoItem) => {
@@ -266,6 +337,8 @@ export function HomeScreen({ navigation }: Props): React.JSX.Element {
         <ClockInHero
           state={loading ? 'idle' : heroState}
           locationLine={locationLine}
+          checkInTime={checkInTime}
+          gpsActive={gpsOk ? true : undefined}
           onPressClockIn={goClockIn}
           onPressHistory={() => navigation.navigate('CheckinHistory')}
         />
@@ -296,7 +369,7 @@ export function HomeScreen({ navigation }: Props): React.JSX.Element {
                   <Pressable
                     key={qa.key}
                     style={({ pressed }) => [styles.qaTile, pressed && styles.qaTilePressed]}
-                    onPress={() => goQa(qa.target)}
+                    onPress={() => goQa(qa.action)}
                   >
                     <View style={[styles.qaIcc, wrap]}>
                       <Icon size={18} color={iconColor} />
@@ -320,7 +393,7 @@ export function HomeScreen({ navigation }: Props): React.JSX.Element {
           <View style={styles.section}>
             <View style={styles.sectionHead}>
               <Text style={styles.sectionTitle}>Tugas Anda</Text>
-              <Pressable onPress={() => parent.navigate('TodoList')}>
+              <Pressable onPress={() => tabsNav.navigate('Task')}>
                 <Text style={styles.sectionLink}>Lihat semua</Text>
               </Pressable>
             </View>

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Alert, StyleSheet, Text, View } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { CheckCircle2, Globe } from 'lucide-react-native';
+import { AuthFooter } from '@shared/components/AuthFooter';
 import { Button } from '@shared/components/Button';
 import { Screen } from '@shared/components/Screen';
 import { TextField } from '@shared/components/TextField';
@@ -171,6 +172,7 @@ export function TenantCodeScreen({ navigation }: Props): React.JSX.Element {
       )}
 
       <Text style={styles.controllerHint}>Server: {getHost(env.controllerUrl)}</Text>
+      <AuthFooter />
     </Screen>
   );
 }

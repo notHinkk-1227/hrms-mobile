@@ -185,3 +185,19 @@ export const tokens = {
 } as const;
 
 export type Tokens = typeof tokens;
+
+// === Theme override saat module load ===
+// Baca preset theme yang dipilih user dari MMKV, mutate semantic.brand +
+// brandHover. Ini cuma jalan sekali pas modul di-import pertama kali — ganti
+// tema dari Profile butuh restart app.
+import { persist, StorageKeys } from '@infrastructure/storage/mmkv';
+import { THEMES, isValidTheme } from './themes';
+
+const storedTheme = persist.getString(StorageKeys.THEME);
+if (isValidTheme(storedTheme)) {
+  const preset = THEMES[storedTheme];
+  // Cast karena `as const` di atas bikin field readonly di TS — runtime tetap
+  // mutable.
+  (tokens.semantic as { brand: string }).brand = preset.brand;
+  (tokens.semantic as { brandHover: string }).brandHover = preset.brandHover;
+}

@@ -1,4 +1,4 @@
-package com.sopwer_hrms_mobile
+package com.sopwer.hadir
 
 import android.app.Application
 import com.facebook.react.PackageList

@@ -131,7 +131,8 @@ export function NotificationsScreen({ navigation }: Props): React.JSX.Element {
       return;
     }
     if (dt === TODO) {
-      parent.navigate('TodoList');
+      // Navigate ke Task tab (TodoList sebagai tab, bukan stack screen)
+      parent.navigate('Tabs', { screen: 'Task' });
       return;
     }
     if (dt === EMPLOYEE && dn) {
@@ -162,9 +163,36 @@ export function NotificationsScreen({ navigation }: Props): React.JSX.Element {
     }
   }
 
+  const handleMarkAll = useCallback(async () => {
+    if (!userId) return;
+    try {
+      await notificationsApi.markAllRead(userId);
+      setRows((curr) => curr.map((r) => ({ ...r, read: 1 })));
+      toast.show({
+        variant: 'success',
+        title: 'Selesai',
+        message: 'Semua notifikasi ditandai dibaca',
+      });
+    } catch (e) {
+      toast.show({
+        variant: 'error',
+        title: 'Gagal',
+        message: e instanceof Error ? e.message : 'Tidak bisa mark all read',
+      });
+    }
+  }, [toast, userId]);
+
+  // Selalu tampil button — server unread count bisa beda dengan local list
+  // (loaded items max 50, tapi server bisa punya >50 unread).
   return (
     <Screen>
       <FormHeader title="Notifikasi" onBack={() => navigation.goBack()} />
+
+      {rows.length > 0 ? (
+        <Pressable onPress={handleMarkAll} style={styles.markAllBtn} hitSlop={8}>
+          <Text style={styles.markAllText}>Tandai semua dibaca</Text>
+        </Pressable>
+      ) : null}
 
       {loading ? (
         <View style={styles.skeletonWrap}>
@@ -244,6 +272,17 @@ export function NotificationsScreen({ navigation }: Props): React.JSX.Element {
 const styles = StyleSheet.create({
   list: { paddingBottom: tokens.spacing.sp5, gap: tokens.spacing.sp2 },
   skeletonWrap: { paddingVertical: tokens.spacing.sp2 },
+  markAllBtn: {
+    alignSelf: 'flex-end',
+    paddingVertical: tokens.spacing.sp2,
+    paddingHorizontal: tokens.spacing.sp3,
+    marginBottom: tokens.spacing.sp2,
+  },
+  markAllText: {
+    fontSize: tokens.fontSize.small,
+    color: tokens.semantic.brand,
+    fontWeight: '700',
+  },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: tokens.spacing.sp4 },
   errorText: { fontSize: tokens.fontSize.small, color: tokens.color.error, textAlign: 'center' },
   bucket: {

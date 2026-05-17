@@ -1,4 +1,4 @@
-package com.sopwer_hrms_mobile
+package com.sopwer.hadir
 
 import com.facebook.react.ReactActivity
 import com.facebook.react.ReactActivityDelegate

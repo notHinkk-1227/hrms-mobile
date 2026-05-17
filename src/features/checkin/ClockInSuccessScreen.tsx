@@ -1,9 +1,9 @@
 import React from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StatusBar, StyleSheet, Text, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { CheckCircle2 } from 'lucide-react-native';
 import { Gradient } from '@shared/components/Gradient';
-import { Screen } from '@shared/components/Screen';
 import { VerificationBadge } from '@shared/components/VerificationBadge';
 import { tokens } from '@shared/theme/tokens';
 import type { HomeStackParamList } from '@app/navigation/types';
@@ -31,8 +31,9 @@ export function ClockInSuccessScreen({ navigation, route }: Props): React.JSX.El
   const title = logType === 'IN' ? 'Presensi Masuk Berhasil' : 'Presensi Pulang Berhasil';
 
   return (
-    <Gradient colors={[tokens.color.blue700, tokens.color.ink900]} angle={180} style={styles.bg}>
-      <Screen style={styles.transparentBg} padded={false}>
+    <Gradient colors={[tokens.color.green500, tokens.color.green700]} angle={180} style={styles.bg}>
+      <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
+      <SafeAreaView style={styles.safe} edges={['top', 'bottom', 'left', 'right']}>
         <View style={styles.content}>
           <View style={styles.iconOuter}>
             <View style={styles.iconInner}>
@@ -82,14 +83,14 @@ export function ClockInSuccessScreen({ navigation, route }: Props): React.JSX.El
             <Text style={styles.ctaBtnText}>Kembali ke Beranda</Text>
           </Pressable>
         </View>
-      </Screen>
+      </SafeAreaView>
     </Gradient>
   );
 }
 
 const styles = StyleSheet.create({
   bg: { flex: 1 },
-  transparentBg: { backgroundColor: 'transparent' },
+  safe: { flex: 1, backgroundColor: 'transparent' },
   content: {
     flex: 1,
     alignItems: 'center',
@@ -183,6 +184,6 @@ const styles = StyleSheet.create({
   ctaBtnText: {
     fontSize: tokens.fontSize.h4,
     fontWeight: '700',
-    color: tokens.color.blue700,
+    color: tokens.color.green700,
   },
 });

@@ -1,18 +1,29 @@
-import React, { useState } from 'react';
-import { Alert, StyleSheet, Text, View } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { Building2, Globe } from 'lucide-react-native';
+import { Building2, Fingerprint, Globe } from 'lucide-react-native';
+import { AuthFooter } from '@shared/components/AuthFooter';
 import { Button } from '@shared/components/Button';
 import { Screen } from '@shared/components/Screen';
 import { TextField } from '@shared/components/TextField';
 import { tokens } from '@shared/theme/tokens';
 import { getHost } from '@shared/utils/url';
 import { env } from '@config/env';
+import { biometricService } from '@infrastructure/biometric/biometricService';
+import { persist, StorageKeys } from '@infrastructure/storage/mmkv';
+import type { Employee } from '@domain/entities/employee';
 import { login } from './authService';
 import { isLocked, recordFailedAttempt } from './loginGuard';
 import { useAuthStore } from './store';
 import type { AuthStackParamList } from '@app/navigation/types';
 import { ApiError } from '@infrastructure/api/errors';
+
+interface BiometricSession {
+  user: string;
+  apiKey: string;
+  apiSecret: string;
+  employee: Employee;
+}
 
 type Props = NativeStackScreenProps<AuthStackParamList, 'Login'>;
 
@@ -33,6 +44,43 @@ export function LoginScreen({ navigation }: Props): React.JSX.Element {
   const setLogin = useAuthStore((s) => s.login);
   const clearTenant = useAuthStore((s) => s.clearTenant);
   const privacyAccepted = useAuthStore((s) => s.privacyAccepted);
+  const biometricEnabled = useAuthStore((s) => s.biometricEnabled);
+
+  const [bioSession, setBioSession] = useState<BiometricSession | null>(null);
+  const [bioLabel, setBioLabel] = useState<string | null>(null);
+  const [bioBusy, setBioBusy] = useState(false);
+
+  useEffect(() => {
+    // Tampilkan icon button kapanpun device support biometric — supaya user
+    // tahu fitur ada. Aksi-nya beda kalau session belum tersimpan.
+    biometricService.isAvailable().then(({ available, biometryType }) => {
+      if (!available) return;
+      setBioLabel(biometricService.labelFor(biometryType));
+      if (biometricEnabled) {
+        const saved = persist.getObject<BiometricSession>(StorageKeys.BIOMETRIC_SESSION);
+        if (saved) setBioSession(saved);
+      }
+    });
+  }, [biometricEnabled]);
+
+  const onBiometricLogin = async () => {
+    if (!bioSession) return;
+    setBioBusy(true);
+    try {
+      const { success } = await biometricService.prompt(
+        `Login sebagai ${bioSession.user}`,
+      );
+      if (!success) return;
+      setLogin({
+        user: bioSession.user,
+        apiKey: bioSession.apiKey,
+        apiSecret: bioSession.apiSecret,
+        employee: bioSession.employee,
+      });
+    } finally {
+      setBioBusy(false);
+    }
+  };
 
   const onSubmit = async () => {
     setFormError(null);
@@ -65,6 +113,31 @@ export function LoginScreen({ navigation }: Props): React.JSX.Element {
         apiSecret: '',
         employee: result.employee,
       });
+      // Refresh biometric session di MMKV kalau biometric sudah enabled —
+      // supaya logout/relaunch berikutnya bisa pakai biometric login.
+      useAuthStore.getState().saveBiometricSession();
+
+      // Opt-in biometric login setelah sukses, kalau device support + belum enabled
+      const { available } = await biometricService.isAvailable();
+      const alreadyEnabled = useAuthStore.getState().biometricEnabled;
+      if (available && !alreadyEnabled) {
+        Alert.alert(
+          'Aktifkan Login Biometrik?',
+          'Buka aplikasi lebih cepat dengan sidik jari atau wajah tanpa perlu input password.',
+          [
+            { text: 'Nanti', style: 'cancel' },
+            {
+              text: 'Aktifkan',
+              onPress: async () => {
+                const { success } = await biometricService.prompt('Konfirmasi biometrik');
+                if (success) {
+                  useAuthStore.getState().setBiometricEnabled(true);
+                }
+              },
+            },
+          ],
+        );
+      }
       if (!privacyAccepted) {
         navigation.replace('Privacy');
       }
@@ -154,13 +227,44 @@ export function LoginScreen({ navigation }: Props): React.JSX.Element {
           error={passwordError ?? undefined}
         />
         {formError ? <Text style={styles.formError}>{formError}</Text> : null}
-        <Button fullWidth onPress={onSubmit} loading={loading} disabled={!email || !password}>
-          Masuk
-        </Button>
+        <View style={styles.submitRow}>
+          <View style={styles.submitMain}>
+            <Button fullWidth onPress={onSubmit} loading={loading} disabled={!email || !password}>
+              Masuk
+            </Button>
+          </View>
+          {bioLabel ? (
+            <Pressable
+              onPress={
+                bioSession
+                  ? onBiometricLogin
+                  : () =>
+                      Alert.alert(
+                        'Login Biometrik',
+                        'Aktifkan dulu di Profil → Login Biometrik setelah masuk pertama kali.',
+                      )
+              }
+              disabled={bioBusy}
+              style={({ pressed }) => [
+                styles.bioIconBtn,
+                pressed && styles.bioIconBtnPressed,
+                bioBusy && styles.bioBtnDisabled,
+                !bioSession && styles.bioIconBtnInactive,
+              ]}
+              accessibilityLabel={`Masuk dengan ${bioLabel}`}
+            >
+              <Fingerprint
+                size={24}
+                color={bioSession ? tokens.color.white : tokens.semantic.fg3}
+              />
+            </Pressable>
+          ) : null}
+        </View>
         <Button variant="ghost" fullWidth onPress={clearTenant} disabled={loading}>
           Ganti Kode Tenant
         </Button>
       </View>
+      <AuthFooter />
     </Screen>
   );
 }
@@ -217,6 +321,22 @@ const styles = StyleSheet.create({
     borderRadius: tokens.radius.sm,
   },
   form: { gap: tokens.spacing.sp3 },
+  submitRow: { flexDirection: 'row', gap: tokens.spacing.sp2, alignItems: 'stretch' },
+  submitMain: { flex: 1 },
+  bioIconBtn: {
+    width: 52,
+    borderRadius: tokens.radius.md,
+    backgroundColor: tokens.semantic.brand,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  bioIconBtnPressed: { opacity: 0.85 },
+  bioIconBtnInactive: {
+    backgroundColor: tokens.semantic.surface2,
+    borderWidth: 1,
+    borderColor: tokens.semantic.line,
+  },
+  bioBtnDisabled: { opacity: 0.5 },
   formError: {
     fontSize: tokens.fontSize.small,
     color: tokens.color.error,

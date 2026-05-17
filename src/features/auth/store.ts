@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist, StorageKeys } from '@infrastructure/storage/mmkv';
 import type { Employee } from '@domain/entities/employee';
+import { DEFAULT_THEME, isValidTheme, type ThemeKey } from '@shared/theme/themes';
 
 export interface TenantInfo {
   code: string;
@@ -28,6 +29,9 @@ interface AuthState {
   employee: Employee | null;
   onboardingSeen: boolean;
   privacyAccepted: boolean;
+  biometricEnabled: boolean;
+  language: 'id' | 'en';
+  theme: ThemeKey;
 
   hydrate: () => void;
   setTenant: (info: TenantInfo) => void;
@@ -36,6 +40,12 @@ interface AuthState {
   logout: () => void;
   markOnboardingSeen: () => void;
   acceptPrivacy: () => void;
+  setBiometricEnabled: (enabled: boolean) => void;
+  /** Snapshot session aktif ke MMKV untuk biometric login. Dipanggil saat
+   * user aktifkan biometric atau setelah login sukses (kalau biometric on). */
+  saveBiometricSession: () => void;
+  setLanguage: (lang: 'id' | 'en') => void;
+  setTheme: (theme: ThemeKey) => void;
 }
 
 const TENANT_TTL_MS = 7 * 24 * 60 * 60 * 1000;
@@ -53,6 +63,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   employee: null,
   onboardingSeen: false,
   privacyAccepted: false,
+  biometricEnabled: false,
+  language: 'id',
+  theme: DEFAULT_THEME,
 
   hydrate: () => {
     const tenantUrl = persist.getString(StorageKeys.TENANT_URL) ?? null;
@@ -65,6 +78,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     const employee = persist.getObject<Employee>(StorageKeys.EMPLOYEE_PROFILE) ?? null;
     const onboardingSeen = persist.getBoolean(StorageKeys.ONBOARDING_SEEN) ?? false;
     const privacyAccepted = persist.getBoolean(StorageKeys.PRIVACY_ACCEPTED) ?? false;
+    const biometricEnabled = persist.getBoolean(StorageKeys.BIOMETRIC_ENABLED) ?? false;
+    const langRaw = persist.getString(StorageKeys.LANGUAGE);
+    const language: 'id' | 'en' = langRaw === 'en' ? 'en' : 'id';
+    const themeRaw = persist.getString(StorageKeys.THEME);
+    const theme: ThemeKey = isValidTheme(themeRaw) ? themeRaw : DEFAULT_THEME;
 
     const isAuthenticated = Boolean(tenantUrl && apiKey && apiSecret && employee);
 
@@ -81,6 +99,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       employee,
       onboardingSeen,
       privacyAccepted,
+      biometricEnabled,
+      language,
+      theme,
     });
   },
 
@@ -129,7 +150,29 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   logout: () => {
-    const { tenantCode, tenantUrl, tenantName, tenantResolvedAt, onboardingSeen } = get();
+    const {
+      tenantCode,
+      tenantUrl,
+      tenantName,
+      tenantResolvedAt,
+      onboardingSeen,
+      privacyAccepted,
+      biometricEnabled,
+      user,
+      apiKey,
+      apiSecret,
+      employee,
+      language,
+      theme,
+    } = get();
+    // Snapshot session sebelum clear — kalau biometric enabled, kita simpan
+    // sebagai BIOMETRIC_SESSION supaya LoginScreen bisa tawarkan login cepat
+    // tanpa password. Phase 1: apiKey/apiSecret bisa kosong (session cookie).
+    const biometricSession =
+      biometricEnabled && user && employee
+        ? { user, apiKey: apiKey ?? '', apiSecret: apiSecret ?? '', employee }
+        : null;
+
     persist.clearAll();
     if (tenantCode && tenantUrl && tenantName && tenantResolvedAt) {
       persist.setString(StorageKeys.TENANT_CODE, tenantCode);
@@ -140,13 +183,24 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     if (onboardingSeen) {
       persist.setBoolean(StorageKeys.ONBOARDING_SEEN, true);
     }
+    // Privacy consent adalah one-time per user — preserve antar session
+    if (privacyAccepted) {
+      persist.setBoolean(StorageKeys.PRIVACY_ACCEPTED, true);
+    }
+    if (biometricSession) {
+      persist.setBoolean(StorageKeys.BIOMETRIC_ENABLED, true);
+      persist.setObject(StorageKeys.BIOMETRIC_SESSION, biometricSession);
+    }
+    persist.setString(StorageKeys.LANGUAGE, language);
+    persist.setString(StorageKeys.THEME, theme);
     set({
       isAuthenticated: false,
       user: null,
       apiKey: null,
       apiSecret: null,
       employee: null,
-      privacyAccepted: false,
+      // Privacy consent dipertahankan — bukan session-scoped
+      biometricEnabled: !!biometricSession,
     });
   },
 
@@ -158,6 +212,49 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   acceptPrivacy: () => {
     persist.setBoolean(StorageKeys.PRIVACY_ACCEPTED, true);
     set({ privacyAccepted: true });
+  },
+
+  setBiometricEnabled: (enabled) => {
+    persist.setBoolean(StorageKeys.BIOMETRIC_ENABLED, enabled);
+    set({ biometricEnabled: enabled });
+    if (enabled) {
+      // Snapshot session aktif saat ini ke MMKV — supaya LoginScreen
+      // selanjutnya bisa biometric login tanpa harus logout dulu.
+      // Phase 1: apiKey/apiSecret bisa kosong (session cookie auth).
+      // Cukup butuh user + employee untuk restore session.
+      const { user, apiKey, apiSecret, employee } = get();
+      if (user && employee) {
+        persist.setObject(StorageKeys.BIOMETRIC_SESSION, {
+          user,
+          apiKey: apiKey ?? '',
+          apiSecret: apiSecret ?? '',
+          employee,
+        });
+      }
+    } else {
+      persist.delete(StorageKeys.BIOMETRIC_SESSION);
+    }
+  },
+
+  saveBiometricSession: () => {
+    const { user, apiKey, apiSecret, employee, biometricEnabled } = get();
+    if (!biometricEnabled || !user || !employee) return;
+    persist.setObject(StorageKeys.BIOMETRIC_SESSION, {
+      user,
+      apiKey: apiKey ?? '',
+      apiSecret: apiSecret ?? '',
+      employee,
+    });
+  },
+
+  setLanguage: (lang) => {
+    persist.setString(StorageKeys.LANGUAGE, lang);
+    set({ language: lang });
+  },
+
+  setTheme: (theme) => {
+    persist.setString(StorageKeys.THEME, theme);
+    set({ theme });
   },
 }));
 

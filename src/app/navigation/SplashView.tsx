@@ -2,7 +2,7 @@ import React from 'react';
 import { ActivityIndicator, Image, StyleSheet, Text, View } from 'react-native';
 import { Gradient } from '@shared/components/Gradient';
 import { tokens } from '@shared/theme/tokens';
-import { getVersionLabel } from '@config/appInfo';
+import { COMPANY_NAME, getVersionLabel } from '@config/appInfo';
 
 const LOGO_FULL = require('@shared/assets/brand/logo-full.png');
 
@@ -23,6 +23,9 @@ export function SplashView(): React.JSX.Element {
       </View>
       <View style={styles.versionWrap} pointerEvents="none">
         <Text style={styles.versionText}>{getVersionLabel()}</Text>
+        <Text style={styles.copyright}>
+          © {new Date().getFullYear()} {COMPANY_NAME}
+        </Text>
       </View>
     </Gradient>
   );
@@ -61,6 +64,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     alignItems: 'center',
+    gap: tokens.spacing.sp1,
   },
   versionText: {
     fontFamily: tokens.font.mono,
@@ -68,5 +72,13 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     letterSpacing: 1,
     color: tokens.color.yellow300,
+  },
+  copyright: {
+    fontFamily: tokens.font.mono,
+    fontSize: 10,
+    fontWeight: '600',
+    letterSpacing: 0.8,
+    color: 'rgba(255,255,255,0.6)',
+    textAlign: 'center',
   },
 });

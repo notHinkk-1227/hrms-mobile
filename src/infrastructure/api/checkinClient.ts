@@ -1,12 +1,14 @@
 import { createTenantClient } from './tenantClient';
 import { toApiError } from './errors';
 import { getAllowedLocationsForToday } from './employeeClient';
+import { useFeaturesStore } from './featureDetect';
 import type { CheckinPort } from '@domain/ports/checkin';
 import type {
   AllowedLocation,
   ClockInPayload,
   ClockInResult,
   LogType,
+  VerificationStatus,
 } from '@domain/entities/checkin';
 
 /** Format datetime untuk Frappe (YYYY-MM-DD HH:mm:ss tanpa timezone). */
@@ -135,22 +137,18 @@ export async function getLastCheckinToday(employee: string): Promise<FrappeEmplo
   }
 }
 
-async function submitCheckin(payload: ClockInPayload): Promise<ClockInResult> {
+async function submitCheckinStandard(payload: ClockInPayload, logType: LogType): Promise<ClockInResult> {
   try {
     const client = createTenantClient();
+    if (!payload.employee) throw new Error('Missing employee in payload');
     const body = {
-      employee: '',
-      log_type: payload.logType,
+      employee: payload.employee,
+      log_type: logType,
       time: toFrappeDatetime(payload.clientTimestamp),
       latitude: payload.coordinate.latitude,
       longitude: payload.coordinate.longitude,
       device_id: payload.device.deviceId,
     };
-    // Caller MUST set employee before calling — port layer handles this in use case
-    if (!('employee' in payload) || !(payload as unknown as { employee: string }).employee) {
-      throw new Error('Missing employee in payload');
-    }
-    body.employee = (payload as unknown as { employee: string }).employee;
 
     const response = await client.post('/api/resource/Employee Checkin', body);
     const doc = response.data?.data;
@@ -165,6 +163,54 @@ async function submitCheckin(payload: ClockInPayload): Promise<ClockInResult> {
   }
 }
 
+/**
+ * Enhanced submit — POST ke sopwer_hrms.api.mobile.clock_in/clock_out.
+ * Server full validation: geofence soft-block, device binding, scoring, selfie save.
+ */
+async function submitCheckinEnhanced(payload: ClockInPayload, logType: LogType): Promise<ClockInResult> {
+  try {
+    const client = createTenantClient();
+    const body = {
+      payload: {
+        device_id: payload.device.deviceId,
+        device_fingerprint: payload.device.deviceFingerprint,
+        latitude: payload.coordinate.latitude,
+        longitude: payload.coordinate.longitude,
+        accuracy_meters: payload.coordinate.accuracyMeters,
+        is_mock_location: payload.integrity.isMockLocation,
+        is_rooted_device: payload.integrity.isRootedDevice,
+        play_integrity_verdict: payload.integrity.playIntegrityVerdict,
+        selfie_base64: payload.selfieBase64,
+        reason_outside_location: payload.reasonOutsideLocation ?? null,
+        client_uuid: payload.clientUuid,
+        client_timestamp: toFrappeDatetime(payload.clientTimestamp),
+      },
+    };
+    const url =
+      logType === 'IN'
+        ? '/api/method/sopwer_hrms.api.mobile.clock_in'
+        : '/api/method/sopwer_hrms.api.mobile.clock_out';
+    const response = await client.post(url, body);
+    const msg = response.data?.message ?? {};
+    return {
+      name: msg.name ?? '',
+      verificationStatus: (msg.verification_status as VerificationStatus) ?? 'Verified',
+      verificationScore: msg.verification_score ?? 0,
+      serverTimestamp: msg.time ?? new Date().toISOString(),
+      message: msg.verification_notes ?? undefined,
+    };
+  } catch (e) {
+    throw toApiError(e);
+  }
+}
+
+function submitCheckin(payload: ClockInPayload, logType: LogType): Promise<ClockInResult> {
+  const features = useFeaturesStore.getState().features;
+  return features.hasSopwerHrms
+    ? submitCheckinEnhanced(payload, logType)
+    : submitCheckinStandard(payload, logType);
+}
+
 export const checkinClient: CheckinPort = {
   async getAllowedLocations(): Promise<AllowedLocation[]> {
     // Caller harus pass employee via wrapper di use case — port interface tidak punya
@@ -174,11 +220,11 @@ export const checkinClient: CheckinPort = {
   },
 
   async submitClockIn(payload: ClockInPayload): Promise<ClockInResult> {
-    return submitCheckin(payload);
+    return submitCheckin(payload, 'IN');
   },
 
   async submitClockOut(payload: ClockInPayload): Promise<ClockInResult> {
-    return submitCheckin(payload);
+    return submitCheckin(payload, 'OUT');
   },
 };
 
