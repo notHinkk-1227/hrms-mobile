@@ -11,6 +11,7 @@ import {
   CheckSquare,
   Clock,
   DollarSign,
+  Mail,
   RefreshCw,
   Users,
   Wallet,
@@ -33,6 +34,9 @@ import {
 import type { RequestSummary } from '@infrastructure/api/hrmsClient';
 import { todoApi, TodoItem } from '@infrastructure/api/hrmsClient';
 import { notificationsApi } from '@infrastructure/api/notificationsClient';
+import { inboxApi } from '@infrastructure/api/inboxClient';
+import { inboxRead } from '@infrastructure/storage/inboxRead';
+import { useFeaturesStore } from '@infrastructure/api/featureDetect';
 import { realtimeService } from '@infrastructure/realtime/realtimeService';
 import { useToast } from '@shared/components/Toast';
 import { TodoSheet } from '@features/todo/TodoSheet';
@@ -153,6 +157,9 @@ export function HomeScreen({ navigation }: Props): React.JSX.Element {
   const [gpsOk, setGpsOk] = useState<boolean>(false);
   const [todos, setTodos] = useState<TodoItem[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [inboxUnread, setInboxUnread] = useState(0);
+  const features = useFeaturesStore((s) => s.features);
+  const inboxEnabled = features.hasSopwerHrms && features.inbox;
   const [selectedTodo, setSelectedTodo] = useState<TodoItem | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -225,6 +232,24 @@ export function HomeScreen({ navigation }: Props): React.JSX.Element {
     }, [employee?.user_id]),
   );
 
+  // Refresh inbox unread saat focus — total published dikurangi readSet lokal.
+  const refreshInboxUnread = useCallback(async () => {
+    if (!inboxEnabled) return;
+    try {
+      const total = await inboxApi.countActive();
+      const readSize = inboxRead.size();
+      setInboxUnread(Math.max(0, total - readSize));
+    } catch {
+      // silent — badge optional
+    }
+  }, [inboxEnabled]);
+
+  useFocusEffect(
+    useCallback(() => {
+      refreshInboxUnread();
+    }, [refreshInboxUnread]),
+  );
+
   // Realtime: dengar event `notification` dari Frappe socket.io. Saat ada
   // task/assign baru: refresh badge + tampil toast singkat.
   const toast = useToast();
@@ -232,18 +257,28 @@ export function HomeScreen({ navigation }: Props): React.JSX.Element {
     const userId = employee?.user_id;
     if (!userId) return;
     return realtimeService.subscribe((event) => {
-      if (event.type !== 'notification') return;
-      notificationsApi
-        .countUnread(userId)
-        .then(setUnreadCount)
-        .catch(() => undefined);
-      toast.show({
-        variant: 'info',
-        title: 'Notifikasi baru',
-        message: 'Ada pemberitahuan masuk — buka untuk lihat detail',
-      });
+      if (event.type === 'notification') {
+        notificationsApi
+          .countUnread(userId)
+          .then(setUnreadCount)
+          .catch(() => undefined);
+        toast.show({
+          variant: 'info',
+          title: 'Notifikasi baru',
+          message: 'Ada pemberitahuan masuk — buka untuk lihat detail',
+        });
+        return;
+      }
+      if (event.type === 'inbox_new') {
+        refreshInboxUnread();
+        toast.show({
+          variant: 'info',
+          title: 'Pengumuman baru',
+          message: event.data?.subject || 'Buka inbox untuk lihat detail',
+        });
+      }
     });
-  }, [employee?.user_id, toast]);
+  }, [employee?.user_id, refreshInboxUnread, toast]);
 
   // Polling fallback: kalau socket.io tidak tersambung (Frappe socketio butuh
   // session cookie, mobile pakai API key — bisa gagal handshake), tetap
@@ -256,9 +291,10 @@ export function HomeScreen({ navigation }: Props): React.JSX.Element {
         .countUnread(userId)
         .then(setUnreadCount)
         .catch(() => undefined);
+      refreshInboxUnread();
     }, 60_000);
     return () => clearInterval(id);
-  }, [employee?.user_id]);
+  }, [employee?.user_id, refreshInboxUnread]);
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
@@ -320,6 +356,23 @@ export function HomeScreen({ navigation }: Props): React.JSX.Element {
             <Text style={styles.greetTitle}>{getGreeting()},</Text>
             <Text style={styles.greetName}>{employee?.employee_name ?? 'Karyawan'}</Text>
           </View>
+          {inboxEnabled ? (
+            <Pressable
+              style={styles.bellBtn}
+              hitSlop={12}
+              onPress={() => navigation.navigate('Inbox')}
+              accessibilityLabel="Inbox pengumuman"
+            >
+              <Mail size={20} color={tokens.semantic.fg2} />
+              {inboxUnread > 0 ? (
+                <View style={styles.bellBadge}>
+                  <Text style={styles.bellBadgeText}>
+                    {inboxUnread > 9 ? '9+' : String(inboxUnread)}
+                  </Text>
+                </View>
+              ) : null}
+            </Pressable>
+          ) : null}
           <Pressable
             style={styles.bellBtn}
             hitSlop={12}

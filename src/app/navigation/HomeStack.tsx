@@ -7,6 +7,8 @@ import { ClockInSuccessScreen } from '@features/checkin/ClockInSuccessScreen';
 import { CheckinHistoryScreen } from '@features/checkin/CheckinHistoryScreen';
 import { CheckinDetailScreen } from '@features/checkin/CheckinDetailScreen';
 import { NotificationsScreen } from '@features/notifications/NotificationsScreen';
+import { InboxListScreen } from '@features/inbox/InboxListScreen';
+import { InboxDetailScreen } from '@features/inbox/InboxDetailScreen';
 import type { HomeStackParamList } from './types';
 
 const Stack = createNativeStackNavigator<HomeStackParamList>();
@@ -25,6 +27,8 @@ export function HomeStack(): React.JSX.Element {
       <Stack.Screen name="CheckinHistory" component={CheckinHistoryScreen} />
       <Stack.Screen name="CheckinDetail" component={CheckinDetailScreen} />
       <Stack.Screen name="Notifications" component={NotificationsScreen} />
+      <Stack.Screen name="Inbox" component={InboxListScreen} />
+      <Stack.Screen name="InboxDetail" component={InboxDetailScreen} />
     </Stack.Navigator>
   );
 }

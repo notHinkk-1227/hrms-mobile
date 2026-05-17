@@ -16,6 +16,7 @@ import { persist, StorageKeys } from '@infrastructure/storage/mmkv';
 
 export type RealtimeEvent =
   | { type: 'notification'; data: unknown }
+  | { type: 'inbox_new'; data: { name?: string; subject?: string; priority?: string } }
   | { type: 'connected' }
   | { type: 'disconnected' };
 
@@ -63,6 +64,10 @@ class RealtimeService {
     this.socket.on('notification', (data: unknown) => {
       console.log('[realtime] notification event:', JSON.stringify(data).slice(0, 200));
       this.emit({ type: 'notification', data });
+    });
+    this.socket.on('inbox_new', (data: { name?: string; subject?: string; priority?: string }) => {
+      console.log('[realtime] inbox_new event:', JSON.stringify(data).slice(0, 200));
+      this.emit({ type: 'inbox_new', data: data ?? {} });
     });
     // Frappe juga publish via event `msgprint` dan custom event nama. Dengarkan
     // wildcard untuk debugging.

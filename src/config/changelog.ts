@@ -11,6 +11,16 @@ export interface ChangelogEntry {
  */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '1.2.0',
+    date: '2026-05-17',
+    items: [
+      'Inbox / Pengumuman — pengumuman dari management masuk ke icon surat di Beranda dengan badge unread',
+      'Detail pengumuman menampilkan body lengkap + lampiran (PDF/gambar/file) yang bisa di-tap untuk dibuka',
+      'Realtime: pengumuman baru langsung muncul di mobile tanpa perlu refresh (via socket.io)',
+      'Read tracking client-side — pengumuman ditandai sudah dibaca otomatis saat dibuka',
+    ],
+  },
+  {
     version: '1.1.0',
     date: '2026-05-17',
     items: [

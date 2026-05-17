@@ -26,6 +26,7 @@ export const StorageKeys = {
   LANGUAGE: 'i18n.language',
   THEME: 'ui.theme',
   BACKEND_FEATURES: 'features.backend',
+  INBOX_READ: 'inbox.read',
 } as const;
 
 export type StorageKey = (typeof StorageKeys)[keyof typeof StorageKeys];

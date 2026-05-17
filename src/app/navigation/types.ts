@@ -16,6 +16,8 @@ export type HomeStackParamList = {
   CheckinHistory: undefined;
   CheckinDetail: { name: string };
   Notifications: undefined;
+  Inbox: undefined;
+  InboxDetail: { name: string };
 };
 
 export type MyRequestsTabParams = {
