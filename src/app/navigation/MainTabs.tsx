@@ -1,5 +1,6 @@
 import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { getFocusedRouteNameFromRoute } from '@react-navigation/native';
 import { HomeStack } from './HomeStack';
 import { MyRequestsScreen } from '@features/my-requests/MyRequestsScreen';
 import { TaskListScreen } from '@features/task/TaskListScreen';
@@ -10,7 +11,19 @@ import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 
 const Tab = createBottomTabNavigator<MainTabsParamList>();
 
-const renderTabBar = (props: BottomTabBarProps) => <BottomNav {...props} />;
+const HIDDEN_NESTED_ROUTES = new Set<string>([
+  'ClockInCamera',
+  'ClockInConfirm',
+  'ClockInSuccess',
+]);
+
+const renderTabBar = (props: BottomTabBarProps) => {
+  const focusedRouteName =
+    props.state.routes[props.state.index] &&
+    getFocusedRouteNameFromRoute(props.state.routes[props.state.index]);
+  if (focusedRouteName && HIDDEN_NESTED_ROUTES.has(focusedRouteName)) return null;
+  return <BottomNav {...props} />;
+};
 
 export function MainTabs(): React.JSX.Element {
   return (

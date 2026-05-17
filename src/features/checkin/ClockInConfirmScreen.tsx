@@ -1,10 +1,10 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, Image, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Image, ScrollView, StyleSheet, Text, View } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { AlertCircle, Camera as CameraIcon, MapPin, Navigation } from 'lucide-react-native';
 import { Button } from '@shared/components/Button';
-import { GeofencePill } from '@shared/components/GeofencePill';
 import { Screen } from '@shared/components/Screen';
+import { StickyCta } from '@shared/components/StickyCta';
 import { TextField } from '@shared/components/TextField';
 import { useToast } from '@shared/components/Toast';
 import { tokens } from '@shared/theme/tokens';
@@ -135,75 +135,75 @@ export function ClockInConfirmScreen({ navigation, route }: Props): React.JSX.El
 
   return (
     <Screen>
-      <View style={styles.header}>
-        <Text style={styles.eyebrow}>KONFIRMASI</Text>
-        <Text style={styles.title}>{title}</Text>
-        <Text style={styles.body}>
-          Pastikan lokasi Anda sesuai sebelum mengirim presensi.
-        </Text>
-      </View>
+      <ScrollView
+        contentContainerStyle={styles.scroll}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.header}>
+          <Text style={styles.eyebrow}>KONFIRMASI</Text>
+          <Text style={styles.title}>{title}</Text>
+          <Text style={styles.body}>
+            Pastikan lokasi Anda sesuai sebelum mengirim presensi.
+          </Text>
+        </View>
 
-      {loading ? (
-        <View style={styles.center}>
-          <ActivityIndicator color={tokens.semantic.brand} size="large" />
-          <Text style={styles.loadingText}>Mengambil lokasi GPS…</Text>
-        </View>
-      ) : error ? (
-        <View style={styles.errorBox}>
-          <AlertCircle size={20} color={tokens.color.error} />
-          <Text style={styles.errorText}>{error}</Text>
-          <Button onPress={loadPreview} variant="outline" size="md">
-            Coba Lagi
-          </Button>
-        </View>
-      ) : preview ? (
-        <View style={styles.previewBox}>
-          <View style={styles.selfieCard}>
-            {photoPath ? (
-              <Image source={{ uri: `file://${photoPath}` }} style={styles.selfieThumb} />
-            ) : (
-              <View style={styles.selfiePlaceholder}>
-                <CameraIcon size={24} color={tokens.semantic.fg3} />
-              </View>
-            )}
-            <View style={styles.selfieMeta}>
-              <Text style={styles.selfieLabel}>
-                {photoPath ? 'Foto selfie siap' : 'Tanpa foto selfie'}
-              </Text>
-              <Text style={styles.selfieHint}>
-                {photoPath
-                  ? 'Foto akan dilampirkan ke catatan presensi.'
-                  : 'Foto opsional untuk verifikasi.'}
-              </Text>
-            </View>
-            <Button
-              variant="ghost"
-              size="sm"
-              onPress={() => navigation.replace('ClockInCamera', { logType })}
-            >
-              {photoPath ? 'Ganti' : 'Ambil'}
+        {loading ? (
+          <View style={styles.center}>
+            <ActivityIndicator color={tokens.semantic.brand} size="large" />
+            <Text style={styles.loadingText}>Mengambil lokasi GPS…</Text>
+          </View>
+        ) : error ? (
+          <View style={styles.errorBox}>
+            <AlertCircle size={20} color={tokens.color.error} />
+            <Text style={styles.errorText}>{error}</Text>
+            <Button onPress={loadPreview} variant="outline" size="md">
+              Coba Lagi
             </Button>
           </View>
-
-          <View style={styles.coordCard}>
-            <View style={styles.coordRow}>
-              <Navigation size={16} color={tokens.semantic.brand} />
-              <Text style={styles.coordLabel}>Koordinat GPS</Text>
+        ) : preview ? (
+          <View style={styles.previewBox}>
+            <View style={styles.selfieCard}>
+              {photoPath ? (
+                <Image source={{ uri: `file://${photoPath}` }} style={styles.selfieThumb} />
+              ) : (
+                <View style={styles.selfiePlaceholder}>
+                  <CameraIcon size={24} color={tokens.semantic.fg3} />
+                </View>
+              )}
+              <View style={styles.selfieMeta}>
+                <Text style={styles.selfieLabel}>
+                  {photoPath ? 'Foto selfie siap' : 'Tanpa foto selfie'}
+                </Text>
+                <Text style={styles.selfieHint}>
+                  {photoPath
+                    ? 'Foto akan dilampirkan ke catatan presensi.'
+                    : 'Foto opsional untuk verifikasi.'}
+                </Text>
+              </View>
+              <Button
+                variant="ghost"
+                size="sm"
+                onPress={() => navigation.replace('ClockInCamera', { logType })}
+              >
+                {photoPath ? 'Ganti' : 'Ambil'}
+              </Button>
             </View>
-            <Text style={styles.coordValue}>
-              {preview.coordinate.latitude.toFixed(6)}, {preview.coordinate.longitude.toFixed(6)}
-            </Text>
-            <Text style={styles.coordMeta}>
-              Akurasi ±{Math.round(preview.coordinate.accuracyMeters)} m
-            </Text>
-          </View>
 
-          {preview.nearest ? (
-            <View>
-              <GeofencePill
-                state={preview.nearest.inside ? 'inside' : 'outside'}
-                label={`${preview.nearest.locationName ?? preview.nearest.name} · ${formatDistance(preview.nearest.distanceM)}`}
-              />
+            <View style={styles.coordCard}>
+              <View style={styles.coordRow}>
+                <Navigation size={16} color={tokens.semantic.brand} />
+                <Text style={styles.coordLabel}>Koordinat GPS</Text>
+              </View>
+              <Text style={styles.coordValue}>
+                {preview.coordinate.latitude.toFixed(6)}, {preview.coordinate.longitude.toFixed(6)}
+              </Text>
+              <Text style={styles.coordMeta}>
+                Akurasi ±{Math.round(preview.coordinate.accuracyMeters)} m
+              </Text>
+            </View>
+
+            {preview.nearest ? (
               <View
                 style={[
                   styles.locationCard,
@@ -211,72 +211,81 @@ export function ClockInConfirmScreen({ navigation, route }: Props): React.JSX.El
                 ]}
               >
                 <View style={styles.locationDetailRow}>
-                  <MapPin size={14} color={tokens.semantic.fg3} />
+                  <MapPin size={16} color={preview.nearest.inside ? tokens.color.green700 : tokens.color.error} />
                   <Text style={styles.locationName}>
                     {preview.nearest.locationName ?? preview.nearest.name}
                   </Text>
                 </View>
                 <Text style={styles.locationDistance}>
                   {preview.nearest.inside
-                    ? `Anda di dalam radius geofence.`
+                    ? 'Anda di dalam radius geofence.'
                     : `Anda ${formatDistance(preview.nearest.distanceM)} dari titik referensi.`}
                 </Text>
               </View>
-            </View>
-          ) : (
-            <View style={[styles.locationCard, styles.locationNone]}>
-              <View style={styles.locationRow}>
-                <AlertCircle size={20} color={tokens.color.yellow700} />
-                <Text style={[styles.locationStatus, { color: tokens.color.yellow700 }]}>
-                  Tidak ada lokasi shift hari ini
-                </Text>
+            ) : (
+              <View style={[styles.locationCard, styles.locationNone]}>
+                <View style={styles.locationDetailRow}>
+                  <AlertCircle size={16} color={tokens.color.yellow700} />
+                  <Text style={[styles.locationName, { color: tokens.color.yellow700 }]}>
+                    Tidak ada lokasi shift hari ini
+                  </Text>
+                </View>
+                <Text style={styles.locationDistance}>Presensi tetap bisa dikirim.</Text>
               </View>
-              <Text style={styles.locationDistance}>Presensi tetap bisa dikirim.</Text>
-            </View>
-          )}
+            )}
 
-          {showReasonField ? (
-            <View style={styles.reasonBox}>
-              <TextField
-                label={`Alasan presensi di luar lokasi${reasonRequired ? ' *' : ''}`}
-                value={reasonOutside}
-                onChangeText={setReasonOutside}
-                placeholder="Contoh: kunjungan klien, kerja lapangan, dst"
-                multiline
-                numberOfLines={3}
-                hint="Diteruskan ke HR untuk review presensi Anda."
-                error={
-                  reasonRequired && submitting === false && reasonOutside.trim().length === 0
-                    ? undefined
-                    : undefined
-                }
-              />
-            </View>
-          ) : null}
+            {showReasonField ? (
+              <View style={styles.reasonBox}>
+                <TextField
+                  label={`Alasan presensi di luar lokasi${reasonRequired ? ' *' : ''}`}
+                  value={reasonOutside}
+                  onChangeText={setReasonOutside}
+                  placeholder="Contoh: kunjungan klien, kerja lapangan, dst"
+                  multiline
+                  numberOfLines={3}
+                  hint="Diteruskan ke HR untuk review presensi Anda."
+                />
+              </View>
+            ) : null}
+          </View>
+        ) : null}
+      </ScrollView>
+
+      <StickyCta>
+        <View style={styles.ctaRow}>
+          <Button
+            variant="outline"
+            style={styles.ctaCancel}
+            onPress={() => navigation.goBack()}
+            disabled={submitting}
+          >
+            Batal
+          </Button>
+          <Button
+            style={styles.ctaSubmit}
+            onPress={() => doSubmit(false)}
+            loading={submitting}
+            disabled={
+              !preview || loading || (reasonRequired && reasonOutside.trim().length === 0)
+            }
+          >
+            Kirim Presensi
+          </Button>
         </View>
-      ) : null}
-
-      <View style={styles.cta}>
-        <Button
-          fullWidth
-          onPress={() => doSubmit(false)}
-          loading={submitting}
-          disabled={
-            !preview || loading || (reasonRequired && reasonOutside.trim().length === 0)
-          }
-        >
-          Kirim Presensi
-        </Button>
-        <Button variant="ghost" fullWidth onPress={() => navigation.goBack()} disabled={submitting}>
-          Batal
-        </Button>
-      </View>
+      </StickyCta>
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  header: { gap: tokens.spacing.sp2, marginBottom: tokens.spacing.sp4 },
+  scroll: {
+    gap: tokens.spacing.sp4,
+    paddingBottom: tokens.spacing.formCtaSpace,
+  },
+  ctaRow: { flexDirection: 'row', gap: tokens.spacing.sp2 },
+  ctaCancel: { flex: 1 },
+  ctaSubmit: { flex: 2 },
+  header: { gap: tokens.spacing.sp2 },
   eyebrow: {
     fontSize: tokens.fontSize.eyebrow,
     color: tokens.semantic.fg3,
@@ -345,7 +354,6 @@ const styles = StyleSheet.create({
   },
   coordMeta: { fontSize: tokens.fontSize.caption, color: tokens.semantic.fg3 },
   locationCard: {
-    marginTop: tokens.spacing.sp2,
     padding: tokens.spacing.sp3,
     borderRadius: tokens.radius.md,
     borderWidth: 1,
@@ -363,11 +371,8 @@ const styles = StyleSheet.create({
     backgroundColor: tokens.color.yellow50,
     borderColor: tokens.color.yellow200,
   },
-  locationRow: { flexDirection: 'row', alignItems: 'center', gap: tokens.spacing.sp2 },
-  locationStatus: { fontSize: tokens.fontSize.h4, fontWeight: '700' },
-  reasonBox: { marginTop: tokens.spacing.sp3 },
-  locationDetailRow: { flexDirection: 'row', alignItems: 'center', gap: tokens.spacing.sp1 },
-  locationName: { fontSize: tokens.fontSize.body, color: tokens.semantic.fg1, fontWeight: '600' },
-  locationDistance: { fontSize: tokens.fontSize.small, color: tokens.semantic.fg3 },
-  cta: { gap: tokens.spacing.sp2, marginTop: tokens.spacing.sp4 },
+  reasonBox: { marginTop: tokens.spacing.sp1 },
+  locationDetailRow: { flexDirection: 'row', alignItems: 'center', gap: tokens.spacing.sp2 },
+  locationName: { fontSize: tokens.fontSize.body, color: tokens.semantic.fg1, fontWeight: '700' },
+  locationDistance: { fontSize: tokens.fontSize.small, color: tokens.semantic.fg2 },
 });
