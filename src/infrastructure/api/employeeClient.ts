@@ -47,7 +47,7 @@ export async function getShiftLocations(names: string[]): Promise<AllowedLocatio
     const response = await client.get('/api/resource/Shift Location', {
       params: {
         filters: JSON.stringify([['name', 'in', names]]),
-        fields: JSON.stringify(['name', 'location_name', 'latitude', 'longitude', 'radius']),
+        fields: JSON.stringify(['name', 'location_name', 'latitude', 'longitude', 'checkin_radius']),
         limit_page_length: 50,
       },
     });
@@ -59,7 +59,7 @@ export async function getShiftLocations(names: string[]): Promise<AllowedLocatio
         locationName: r.location_name ? String(r.location_name) : undefined,
         latitude: r.latitude as number,
         longitude: r.longitude as number,
-        radiusM: typeof r.radius === 'number' ? (r.radius as number) : 100,
+        radiusM: typeof r.checkin_radius === 'number' ? (r.checkin_radius as number) : 100,
       }));
   } catch (e) {
     throw toApiError(e);
