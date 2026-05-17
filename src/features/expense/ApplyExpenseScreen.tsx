@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Plus, Trash2 } from 'lucide-react-native';
 import { Button } from '@shared/components/Button';
+import { NoticeCard } from '@shared/components/NoticeCard';
 import { Screen } from '@shared/components/Screen';
 import { Select } from '@shared/components/Select';
 import { StickyCta } from '@shared/components/StickyCta';
@@ -10,12 +11,21 @@ import { DateField } from '@shared/components/DateField';
 import { TextField } from '@shared/components/TextField';
 import { CurrencyInput } from '@shared/components/CurrencyInput';
 import { AttachmentRow } from '@shared/components/AttachmentRow';
+import { useToast } from '@shared/components/Toast';
 import { FormHeader } from '@features/forms/FormHeader';
 import { tokens } from '@shared/theme/tokens';
 import { useAuthStore } from '@features/auth/store';
 import { expenseApi, ExpenseClaimType } from '@infrastructure/api/hrmsClient';
+import {
+  getCostCenters,
+  getEmployeeApprovers,
+  getProjects,
+  type CostCenterOption,
+  type ProjectOption,
+} from '@infrastructure/api/employeeClient';
 import type { UploadedFile } from '@infrastructure/api/uploadClient';
 import { ApiError } from '@infrastructure/api/errors';
+import { translateFrappeError } from '@infrastructure/api/errorTranslator';
 import type { MainStackParamList } from '@app/navigation/types';
 
 type Props = NativeStackScreenProps<MainStackParamList, 'ApplyExpense'>;
@@ -46,23 +56,54 @@ function formatRp(n: number): string {
 
 export function ApplyExpenseScreen({ navigation }: Props): React.JSX.Element {
   const employee = useAuthStore((s) => s.employee);
+  const toast = useToast();
 
   const [types, setTypes] = useState<ExpenseClaimType[]>([]);
+  const [projects, setProjects] = useState<ProjectOption[]>([]);
+  const [costCenters, setCostCenters] = useState<CostCenterOption[]>([]);
   const [loadingTypes, setLoadingTypes] = useState(true);
+  const [loadingProjects, setLoadingProjects] = useState(true);
+  const [loadingCostCenters, setLoadingCostCenters] = useState(true);
   const [items, setItems] = useState<ItemDraft[]>([makeEmptyItem()]);
+  const [project, setProject] = useState<string | null>(null);
+  const [costCenter, setCostCenter] = useState<string | null>(null);
+  const [remark, setRemark] = useState('');
+  const [expenseApprover, setExpenseApprover] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   useEffect(() => {
     expenseApi
       .listTypes()
       .then(setTypes)
-      .catch(() => Alert.alert('Gagal memuat tipe biaya', 'Coba lagi nanti'))
+      .catch(() => toast.show({ variant: 'warning', message: 'Gagal memuat tipe biaya' }))
       .finally(() => setLoadingTypes(false));
-  }, []);
+    getProjects()
+      .then(setProjects)
+      .catch(() => {
+        // silent — project optional
+      })
+      .finally(() => setLoadingProjects(false));
+    getCostCenters(employee?.company ?? undefined)
+      .then(setCostCenters)
+      .catch(() => {
+        // silent — cost center optional
+      })
+      .finally(() => setLoadingCostCenters(false));
+    if (employee?.name) {
+      getEmployeeApprovers(employee.name)
+        .then((a) => setExpenseApprover(a.expense_approver))
+        .catch(() => {
+          // silent — approver auto-fill optional
+        });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [employee?.name, employee?.company]);
 
   const total = items.reduce((sum, i) => sum + (i.amount ?? 0), 0);
 
   const updateItem = (id: string, patch: Partial<ItemDraft>) => {
+    setSubmitError(null);
     setItems((curr) => curr.map((i) => (i.id === id ? { ...i, ...patch } : i)));
   };
 
@@ -76,11 +117,12 @@ export function ApplyExpenseScreen({ navigation }: Props): React.JSX.Element {
 
   const onSubmit = async () => {
     if (!employee?.name) return;
+    setSubmitError(null);
     const incomplete = items.find(
       (i) => !i.expense_type || !i.expense_date || !i.description.trim() || !i.amount || i.amount <= 0,
     );
     if (incomplete) {
-      Alert.alert('Item tidak lengkap', 'Pastikan semua item terisi lengkap dengan jumlah > 0.');
+      setSubmitError('Pastikan semua item terisi lengkap dengan jumlah > 0.');
       return;
     }
 
@@ -89,6 +131,10 @@ export function ApplyExpenseScreen({ navigation }: Props): React.JSX.Element {
       const result = await expenseApi.submit({
         employee: employee.name,
         posting_date: new Date().toISOString().slice(0, 10),
+        expense_approver: expenseApprover ?? undefined,
+        project: project ?? undefined,
+        cost_center: costCenter ?? undefined,
+        remark: remark.trim() || undefined,
         expenses: items.map((i) => ({
           expense_type: i.expense_type!,
           expense_date: i.expense_date!,
@@ -101,11 +147,13 @@ export function ApplyExpenseScreen({ navigation }: Props): React.JSX.Element {
         doctype: 'Expense Claim',
         name: result.name,
         title: 'Klaim Reimbursement Terkirim',
-        message: `Total ${formatRp(total)} menunggu approval.`,
+        message: `Total Rp ${formatRp(total)} menunggu approval.`,
       });
     } catch (e) {
       const apiError = e as ApiError;
-      Alert.alert('Gagal mengirim klaim', apiError.message || 'Coba lagi');
+      const msg = translateFrappeError(apiError.message);
+      setSubmitError(msg);
+      toast.show({ variant: 'error', title: 'Gagal mengirim klaim', message: msg });
     } finally {
       setSubmitting(false);
     }
@@ -114,11 +162,7 @@ export function ApplyExpenseScreen({ navigation }: Props): React.JSX.Element {
   return (
     <Screen>
       <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
-        <FormHeader
-          title="Klaim Reimbursement"
-          subtitle="Kumpulkan struk biaya"
-          onBack={() => navigation.goBack()}
-        />
+        <FormHeader title="Klaim Reimbursement" onBack={() => navigation.goBack()} />
 
         <View style={styles.itemList}>
           {items.map((item, idx) => (
@@ -171,23 +215,72 @@ export function ApplyExpenseScreen({ navigation }: Props): React.JSX.Element {
           <Text style={styles.addBtnText}>Tambah Item</Text>
         </Pressable>
 
+        <View style={styles.metaForm}>
+          <Select
+            label="Proyek (opsional)"
+            value={project}
+            options={projects.map((p) => ({ value: p.name, label: p.project_name || p.name }))}
+            onChange={(v) => {
+              setProject(v);
+              setSubmitError(null);
+            }}
+            placeholder={loadingProjects ? 'Memuat…' : 'Pilih proyek (kosongkan jika tidak terkait)'}
+            loading={loadingProjects}
+          />
+          <Select
+            label="Cost Center (opsional)"
+            value={costCenter}
+            options={costCenters.map((c) => ({
+              value: c.name,
+              label: c.cost_center_name || c.name,
+            }))}
+            onChange={(v) => {
+              setCostCenter(v);
+              setSubmitError(null);
+            }}
+            placeholder={loadingCostCenters ? 'Memuat…' : 'Pilih cost center'}
+            loading={loadingCostCenters}
+          />
+          <TextField
+            label="Catatan (opsional)"
+            value={remark}
+            onChangeText={(t) => {
+              setRemark(t);
+              setSubmitError(null);
+            }}
+            placeholder="Tambahan info untuk approver"
+            multiline
+            numberOfLines={3}
+            style={styles.textArea}
+          />
+        </View>
+
         <View style={styles.totalCard}>
           <Text style={styles.totalLabel}>TOTAL KLAIM</Text>
           <Text style={styles.totalValue}>Rp {formatRp(total)}</Text>
         </View>
+
+        {submitError ? (
+          <NoticeCard variant="error" title="Tidak bisa mengirim klaim" body={submitError} />
+        ) : null}
       </ScrollView>
 
       <StickyCta>
-        <Button fullWidth onPress={onSubmit} loading={submitting}>
-          Kirim Klaim
-        </Button>
+        <View style={styles.ctaRow}>
+          <Button variant="outline" style={styles.ctaCancel} onPress={() => navigation.goBack()}>
+            Batal
+          </Button>
+          <Button style={styles.ctaSubmit} onPress={onSubmit} loading={submitting}>
+            Kirim Klaim
+          </Button>
+        </View>
       </StickyCta>
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  scroll: { gap: tokens.spacing.sp4, paddingBottom: 120 },
+  scroll: { gap: tokens.spacing.sp4, paddingBottom: tokens.spacing.formCtaSpace },
   itemList: { gap: tokens.spacing.sp3 },
   itemCard: {
     padding: tokens.spacing.sp3,
@@ -217,6 +310,8 @@ const styles = StyleSheet.create({
     borderStyle: 'dashed',
   },
   addBtnText: { fontSize: tokens.fontSize.body, color: tokens.semantic.brand, fontWeight: '700' },
+  metaForm: { gap: tokens.spacing.sp3 },
+  textArea: { height: 80, paddingTop: tokens.spacing.sp2, textAlignVertical: 'top' },
   totalCard: {
     padding: tokens.spacing.sp4,
     backgroundColor: tokens.color.green600,
@@ -235,4 +330,7 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     fontFamily: tokens.font.mono,
   },
+  ctaRow: { flexDirection: 'row', gap: tokens.spacing.sp2 },
+  ctaCancel: { flex: 1 },
+  ctaSubmit: { flex: 2 },
 });

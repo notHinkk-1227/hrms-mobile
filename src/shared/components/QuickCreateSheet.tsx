@@ -43,7 +43,7 @@ const ACTIONS: QuickCreateAction[] = [
   },
   {
     key: 'attendance-request',
-    title: 'Koreksi Absen',
+    title: 'Koreksi Presensi',
     subtitle: 'WFH atau dinas luar',
     icon: <RefreshCw size={17} color={tokens.semantic.fg2} />,
     tileBg: tokens.color.ink50,
@@ -132,7 +132,7 @@ const styles = StyleSheet.create({
   },
   headerTitle: { fontSize: tokens.fontSize.h4, fontWeight: '700', color: tokens.semantic.fg1 },
   headerSub: { fontSize: tokens.fontSize.small, color: tokens.semantic.fg3 },
-  grid: { padding: tokens.spacing.sp3, gap: 6 },
+  grid: { padding: tokens.spacing.sp3, gap: tokens.spacing.sp1_5 },
   card: {
     flexDirection: 'row',
     alignItems: 'center',

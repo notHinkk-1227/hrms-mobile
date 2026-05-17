@@ -18,7 +18,7 @@ const { width } = Dimensions.get('window');
 
 const SLIDES = [
   {
-    title: 'Absen cukup dari HP',
+    title: 'Presensi cukup dari HP',
     body: 'Verifikasi lokasi GPS otomatis. Tidak perlu fingerprint rusak atau foto WhatsApp ke supervisor.',
     Illustration: GpsAttendanceIllustration,
   },

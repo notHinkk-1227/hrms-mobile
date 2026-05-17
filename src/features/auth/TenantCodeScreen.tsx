@@ -7,16 +7,35 @@ import { Screen } from '@shared/components/Screen';
 import { TextField } from '@shared/components/TextField';
 import { tokens } from '@shared/theme/tokens';
 import { getHost } from '@shared/utils/url';
-import { resolveTenantCode, ResolveTenantResponse } from '@infrastructure/api/controllerClient';
+import {
+  resolveTenantCode,
+  ResolveErrorCode,
+  ResolveTenantResponse,
+} from '@infrastructure/api/controllerClient';
 import { getDeviceId } from '@infrastructure/device/deviceInfo';
 import { ApiError } from '@infrastructure/api/errors';
 import { env } from '@config/env';
+import { APP_ID } from '@config/appInfo';
 import { useAuthStore } from './store';
 import type { AuthStackParamList } from '@app/navigation/types';
 
 type Props = NativeStackScreenProps<AuthStackParamList, 'TenantCode'>;
 
 const TENANT_CODE_REGEX = /^[A-Z0-9]{4,12}$/;
+
+const ERROR_MESSAGES: Record<ResolveErrorCode, string> = {
+  missing_parameter: 'Kode tenant dan ID perangkat wajib diisi.',
+  invalid_code: 'Kode tenant tidak ditemukan. Periksa kembali kode dari HR.',
+  disabled: 'Akses tenant sedang dinonaktifkan. Hubungi admin perusahaan Anda.',
+  expired: 'Kode tenant sudah kadaluarsa. Hubungi admin untuk perpanjangan.',
+  app_not_allowed:
+    'Aplikasi HRMS belum diizinkan untuk tenant ini. Hubungi HR untuk aktivasi.',
+  quota_exceeded:
+    'Kuota perangkat tenant ini sudah penuh. Hubungi admin untuk mencabut perangkat lama.',
+  device_revoked:
+    'Perangkat ini sudah dicabut aksesnya oleh admin. Hubungi HR untuk binding ulang.',
+  server_error: 'Server bermasalah. Coba lagi dalam beberapa saat.',
+};
 
 interface ResolvedTenant {
   code: string;
@@ -44,7 +63,8 @@ export function TenantCodeScreen({ navigation }: Props): React.JSX.Element {
       const deviceId = await getDeviceId();
       const result: ResolveTenantResponse = await resolveTenantCode(code, deviceId);
       if (!result?.ok || !result.url) {
-        setError(result?.message || 'Kode tenant tidak ditemukan');
+        const friendly = result?.error_code ? ERROR_MESSAGES[result.error_code] : null;
+        setError(friendly ?? result?.message ?? 'Kode tenant tidak ditemukan');
         return;
       }
       setResolved({
@@ -54,12 +74,10 @@ export function TenantCodeScreen({ navigation }: Props): React.JSX.Element {
       });
     } catch (e) {
       const apiError = e as ApiError;
-      if (apiError.kind === 'not_found') {
-        setError('Kode tenant tidak ditemukan');
-      } else if (apiError.kind === 'network') {
+      if (apiError.kind === 'network') {
         setError('Tidak ada koneksi — periksa jaringan');
-      } else if (apiError.kind === 'server') {
-        setError('Server bermasalah — coba lagi');
+      } else if (apiError.kind === 'timeout') {
+        setError('Server lama merespons. Coba lagi.');
       } else {
         setError(apiError.message || 'Gagal menghubungi server');
       }
@@ -89,6 +107,7 @@ export function TenantCodeScreen({ navigation }: Props): React.JSX.Element {
         'Debug Info',
         `Controller URL:\n${env.controllerUrl}\n\n` +
           `Endpoint:\n/api/method/sopwer_controller.api.resolve_tenant_code\n\n` +
+          `App ID:\n${APP_ID}\n\n` +
           (resolved
             ? `Resolved tenant:\n• Name: ${resolved.name}\n• Code: ${resolved.code}\n• Full URL: ${resolved.url}\n• Host: ${getHost(resolved.url)}`
             : 'Belum ada tenant resolved.'),

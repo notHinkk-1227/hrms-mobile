@@ -1,5 +1,6 @@
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { Animated, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AlertTriangle, CheckCircle2, Info, X, XCircle } from 'lucide-react-native';
 import { tokens } from '@shared/theme/tokens';
 
@@ -31,10 +32,12 @@ interface ToastState extends ToastOptions {
 }
 
 export function ToastProvider({ children }: { children: React.ReactNode }): React.JSX.Element {
+  const insets = useSafeAreaInsets();
   const [toast, setToast] = useState<ToastState | null>(null);
   const opacity = useRef(new Animated.Value(0)).current;
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const idRef = useRef(0);
+  const topOffset = Math.max(insets.top + tokens.spacing.sp2, 24);
 
   const dismiss = useCallback(() => {
     Animated.timing(opacity, {
@@ -72,7 +75,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }): Reac
     <ToastContext.Provider value={{ show }}>
       {children}
       {toast ? (
-        <Animated.View style={[styles.wrapper, { opacity }]} pointerEvents="box-none">
+        <Animated.View style={[styles.wrapper, { opacity, top: topOffset }]} pointerEvents="box-none">
           <Pressable onPress={dismiss} style={[styles.toast, variantStyle(toast.variant ?? 'info')]}>
             <Icon variant={toast.variant ?? 'info'} />
             <View style={styles.text}>
@@ -118,7 +121,6 @@ function variantStyle(variant: ToastVariant) {
 const styles = StyleSheet.create({
   wrapper: {
     position: 'absolute',
-    top: 60,
     left: tokens.spacing.sp4,
     right: tokens.spacing.sp4,
     zIndex: 9999,

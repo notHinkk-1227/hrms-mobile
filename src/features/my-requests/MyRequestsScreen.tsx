@@ -10,7 +10,7 @@ import {
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NavigationProp } from '@react-navigation/native';
-import { Inbox, Plus } from 'lucide-react-native';
+import { Inbox } from 'lucide-react-native';
 import { EmptyState } from '@shared/components/EmptyState';
 import { Screen } from '@shared/components/Screen';
 import { SkeletonList } from '@shared/components/Skeleton';
@@ -46,6 +46,7 @@ function formatDate(iso: string): string {
 export function MyRequestsScreen(): React.JSX.Element {
   const employee = useAuthStore((s) => s.employee);
   const parent = useNavigation<NavigationProp<MainStackParamList>>();
+  const year = new Date().getFullYear();
 
   const [items, setItems] = useState<RequestSummary[]>([]);
   const [loading, setLoading] = useState(true);
@@ -83,13 +84,10 @@ export function MyRequestsScreen(): React.JSX.Element {
     <Screen bottomInset={false}>
       <View style={styles.header}>
         <View style={styles.titleRow}>
-          <Text style={styles.title}>Permohonan Saya</Text>
-          <Pressable
-            onPress={() => parent.navigate('ApplyLeave')}
-            style={styles.fab}
-          >
-            <Plus size={20} color={tokens.color.white} />
-          </Pressable>
+          <View style={styles.titleCol}>
+            <Text style={styles.title}>Permohonan Saya</Text>
+            <Text style={styles.subtitle}>{`${items.length} PERMOHONAN · ${year}`}</Text>
+          </View>
         </View>
         <ScrollView
           horizontal
@@ -181,27 +179,28 @@ const EmptyList = () => (
   <EmptyState
     icon={<Inbox size={32} color={tokens.color.ink300} />}
     title="Belum ada permohonan"
-    subtitle="Buat permohonan baru dengan tombol + di atas atau FAB di bawah."
+    subtitle="Buat permohonan baru dengan tombol + di nav."
   />
 );
 
 const styles = StyleSheet.create({
   header: { gap: tokens.spacing.sp3, paddingBottom: tokens.spacing.sp3 },
-  titleRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  titleRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end' },
+  titleCol: { flex: 1 },
   title: { fontSize: tokens.fontSize.h1, fontWeight: '800', color: tokens.semantic.fg1 },
-  fab: {
-    width: 40,
-    height: 40,
-    borderRadius: tokens.radius.full,
-    backgroundColor: tokens.semantic.brand,
-    alignItems: 'center',
-    justifyContent: 'center',
+  subtitle: {
+    marginTop: 2,
+    fontSize: tokens.fontSize.caption,
+    fontFamily: tokens.font.mono,
+    fontWeight: '700',
+    letterSpacing: 1,
+    color: tokens.semantic.fg3,
   },
   tabs: { flexDirection: 'row', gap: tokens.spacing.sp2, paddingRight: tokens.spacing.sp4 },
   tab: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: tokens.spacing.sp1_5,
     paddingHorizontal: tokens.spacing.sp3,
     paddingVertical: tokens.spacing.sp2,
     borderRadius: tokens.radius.full,
@@ -228,7 +227,7 @@ const styles = StyleSheet.create({
     borderRadius: tokens.radius.lg,
     borderWidth: 1,
     borderColor: tokens.semantic.line,
-    gap: 4,
+    gap: tokens.spacing.sp1,
   },
   rowPressed: { backgroundColor: tokens.semantic.surface2 },
   rowMeta: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },

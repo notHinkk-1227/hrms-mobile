@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { ChevronLeft, ChevronRight } from 'lucide-react-native';
+import { ChevronLeft, ChevronRight, Edit3 } from 'lucide-react-native';
 import { Screen } from '@shared/components/Screen';
 import { FormHeader } from '@features/forms/FormHeader';
 import { tokens } from '@shared/theme/tokens';
@@ -72,7 +72,7 @@ function statusLabel(status: string): string {
     case 'Work From Home':
       return 'WFH';
     case 'Absent':
-      return 'Absen';
+      return 'Tidak Hadir';
     default:
       return status;
   }
@@ -105,7 +105,7 @@ export function MyAttendanceScreen({ navigation }: Props): React.JSX.Element {
       const data = await attendanceApi.listByMonth(employee.name, year, month);
       setRecords(data);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Gagal memuat absensi');
+      setError(e instanceof Error ? e.message : 'Gagal memuat presensi');
     } finally {
       setLoading(false);
     }
@@ -161,7 +161,7 @@ export function MyAttendanceScreen({ navigation }: Props): React.JSX.Element {
   return (
     <Screen>
       <ScrollView contentContainerStyle={styles.scroll}>
-        <FormHeader title="Riwayat Absen" onBack={() => navigation.goBack()} />
+        <FormHeader title="Riwayat Presensi" onBack={() => navigation.goBack()} />
 
         <View style={styles.monthNav}>
           <Pressable onPress={prevMonth} hitSlop={12}>
@@ -245,18 +245,42 @@ export function MyAttendanceScreen({ navigation }: Props): React.JSX.Element {
                   </View>
                 ))}
               {Object.values(stats).every((v) => v === 0) ? (
-                <Text style={styles.statsEmpty}>Tidak ada catatan absensi bulan ini.</Text>
+                <Text style={styles.statsEmpty}>Tidak ada catatan presensi bulan ini.</Text>
               ) : null}
             </View>
           </>
         )}
       </ScrollView>
+
+      <Pressable
+        style={({ pressed }) => [styles.fab, pressed && styles.fabPressed]}
+        onPress={() => navigation.navigate('RequestAttendance')}
+        accessibilityLabel="Ajukan koreksi presensi"
+      >
+        <Edit3 size={18} color={tokens.color.white} />
+        <Text style={styles.fabText}>Ajukan Koreksi</Text>
+      </Pressable>
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  scroll: { gap: tokens.spacing.sp4, paddingBottom: tokens.spacing.sp5 },
+  scroll: { gap: tokens.spacing.sp4, paddingBottom: tokens.spacing.formCtaSpace },
+  fab: {
+    position: 'absolute',
+    right: tokens.spacing.sp4,
+    bottom: tokens.spacing.sp4,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: tokens.spacing.sp2,
+    paddingVertical: 12,
+    paddingHorizontal: tokens.spacing.sp4,
+    borderRadius: tokens.radius.full,
+    backgroundColor: tokens.semantic.brand,
+    ...tokens.shadow.md,
+  },
+  fabPressed: { opacity: 0.85 },
+  fabText: { color: tokens.color.white, fontSize: tokens.fontSize.small, fontWeight: '700' },
   monthNav: {
     flexDirection: 'row',
     justifyContent: 'space-between',

@@ -9,7 +9,7 @@ import type { UploadedFile } from './uploadClient';
 
 export interface LeaveType {
   name: string;
-  max_continuous_days: number | null;
+  max_continuous_days_allowed: number | null;
   is_lwp: 0 | 1;
 }
 
@@ -50,6 +50,9 @@ export interface ExpenseClaimInput {
   expense_approver?: string;
   posting_date: string;
   expenses: ExpenseClaimItem[];
+  project?: string;
+  cost_center?: string;
+  remark?: string;
 }
 
 export interface ModeOfPayment {
@@ -126,7 +129,7 @@ async function post<T>(path: string, body: unknown): Promise<T> {
 export const leaveApi = {
   async listTypes(): Promise<LeaveType[]> {
     const res = await get<{ data: LeaveType[] }>('/api/resource/Leave Type', {
-      fields: JSON.stringify(['name', 'max_continuous_days', 'is_lwp']),
+      fields: JSON.stringify(['name', 'max_continuous_days_allowed', 'is_lwp']),
       limit_page_length: 50,
     });
     return res.data ?? [];
@@ -141,10 +144,7 @@ export const leaveApi = {
   },
 
   async submit(input: LeaveApplicationInput): Promise<{ name: string }> {
-    const res = await post<{ data: { name: string } }>('/api/resource/Leave Application', {
-      ...input,
-      status: 'Open',
-    });
+    const res = await post<{ data: { name: string } }>('/api/resource/Leave Application', input);
     return res.data;
   },
 };
@@ -165,7 +165,6 @@ export const expenseApi = {
     const body = {
       ...input,
       total_claimed_amount: total,
-      approval_status: 'Draft',
       expenses: input.expenses.map((e) => ({
         expense_type: e.expense_type,
         expense_date: e.expense_date,
@@ -217,10 +216,7 @@ export const shiftRequestApi = {
   },
 
   async submit(input: ShiftRequestInput): Promise<{ name: string }> {
-    const res = await post<{ data: { name: string } }>('/api/resource/Shift Request', {
-      ...input,
-      status: 'Draft',
-    });
+    const res = await post<{ data: { name: string } }>('/api/resource/Shift Request', input);
     return res.data;
   },
 };
@@ -366,11 +362,22 @@ export async function listByDoctype(
   );
   const rows = res.data ?? [];
   return rows.map((doc) => {
-    // For Expense Claim, prefer approval_status as the display status
-    const statusValue =
-      doctype === 'Expense Claim' && doc.approval_status
-        ? (doc.approval_status as string)
-        : (doc.status as string) ?? 'Open';
+    // Expense Claim punya 2 status field:
+    // - approval_status (Draft/Approved/Rejected) — diset oleh approver
+    // - status (Draft/Submitted/Paid/Unpaid/Rejected/Cancelled) — submission state
+    // Display logic: kalau approval_status sudah meaningful (Approved/Rejected) pakai itu,
+    // kalau masih Draft (default) → tampilkan submission status biar user tahu sedang menunggu.
+    let statusValue: string;
+    if (doctype === 'Expense Claim') {
+      const approvalStatus = doc.approval_status as string | undefined;
+      const docStatus = doc.status as string | undefined;
+      statusValue =
+        approvalStatus && approvalStatus !== 'Draft'
+          ? approvalStatus
+          : docStatus ?? 'Draft';
+    } else {
+      statusValue = (doc.status as string) ?? 'Open';
+    }
     return {
       doctype,
       name: String(doc.name),
@@ -497,6 +504,63 @@ export const attendanceApi = {
       limit_page_length: 50,
     });
     return res.data ?? [];
+  },
+};
+
+// ============ ToDo (Frappe bawaan) ============
+
+export interface TodoItem {
+  name: string;
+  description: string; // HTML — strip ke text di mobile
+  date: string | null;
+  priority: 'High' | 'Medium' | 'Low' | string;
+  status: 'Open' | 'Closed' | 'Cancelled' | string;
+  reference_type: string | null;
+  reference_name: string | null;
+  assigned_by: string | null;
+  assigned_by_full_name: string | null;
+  color: string | null;
+}
+
+const TODO_FIELDS = [
+  'name',
+  'description',
+  'date',
+  'priority',
+  'status',
+  'reference_type',
+  'reference_name',
+  'assigned_by',
+  'assigned_by_full_name',
+  'color',
+];
+
+export type TodoStatus = 'Open' | 'Closed' | 'Cancelled';
+
+export const todoApi = {
+  async listMyOpen(user: string, limit = 100): Promise<TodoItem[]> {
+    return todoApi.listMy(user, ['Open'], limit);
+  },
+
+  async listMy(user: string, statuses: TodoStatus[], limit = 100): Promise<TodoItem[]> {
+    const filters: Array<[string, string, unknown]> = [['allocated_to', '=', user]];
+    if (statuses.length > 0) {
+      filters.push(['status', 'in', statuses]);
+    }
+    const res = await get<{ data: TodoItem[] }>('/api/resource/ToDo', {
+      filters: JSON.stringify(filters),
+      fields: JSON.stringify(TODO_FIELDS),
+      order_by: 'date asc, priority desc',
+      limit_page_length: limit,
+    });
+    return res.data ?? [];
+  },
+
+  async markDone(name: string): Promise<void> {
+    await put<{ data: unknown }>(
+      `/api/resource/ToDo/${encodeURIComponent(name)}`,
+      { status: 'Closed' },
+    );
   },
 };
 

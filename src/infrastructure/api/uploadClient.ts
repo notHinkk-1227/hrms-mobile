@@ -1,5 +1,5 @@
-import { createTenantClient } from './tenantClient';
-import { toApiError } from './errors';
+import { persist, StorageKeys } from '@infrastructure/storage/mmkv';
+import { NotAuthenticatedError } from './tenantClient';
 
 export interface UploadedFile {
   name: string;
@@ -22,14 +22,23 @@ export interface UploadFileParams {
 
 /**
  * Upload file ke Frappe via /api/method/upload_file (multipart).
- * Untuk RN, FormData accepts object dengan `{uri, name, type}`.
+ *
+ * Pakai XMLHttpRequest — bukan fetch maupun axios — karena di React Native:
+ * 1. XHR + FormData multipart boundary di-handle native module (paling reliable).
+ * 2. `fetch()` sering tidak preserve `{uri, name, type}` Blob shape di RN.
+ * 3. axios + tenantClient default Content-Type 'application/json' bentrok.
  */
-export async function uploadFile(params: UploadFileParams): Promise<UploadedFile> {
-  try {
-    const client = createTenantClient();
+export function uploadFile(params: UploadFileParams): Promise<UploadedFile> {
+  return new Promise<UploadedFile>((resolve, reject) => {
+    const tenantUrl = persist.getString(StorageKeys.TENANT_URL);
+    const apiKey = persist.getString(StorageKeys.AUTH_API_KEY);
+    const apiSecret = persist.getString(StorageKeys.AUTH_API_SECRET);
+    if (!tenantUrl) {
+      reject(new NotAuthenticatedError());
+      return;
+    }
+
     const form = new FormData();
-    // RN FormData accepts {uri, name, type} object — cast via unknown to bypass
-    // browser FormData type which expects Blob/string.
     form.append('file', {
       uri: params.uri,
       name: params.name,
@@ -41,12 +50,42 @@ export async function uploadFile(params: UploadFileParams): Promise<UploadedFile
     if (params.attachToName) form.append('docname', params.attachToName);
     if (params.fieldname) form.append('fieldname', params.fieldname);
 
-    const response = await client.post('/api/method/upload_file', form, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-      transformRequest: (data) => data,
-    });
-    return response.data?.message as UploadedFile;
-  } catch (e) {
-    throw toApiError(e);
-  }
+    const url = tenantUrl.replace(/\/$/, '') + '/api/method/upload_file';
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', url);
+    xhr.setRequestHeader('Accept', 'application/json');
+    if (apiKey && apiSecret) {
+      xhr.setRequestHeader('Authorization', `token ${apiKey}:${apiSecret}`);
+    }
+    // JANGAN setRequestHeader Content-Type — XHR auto-set multipart + boundary
+
+    xhr.onload = () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        try {
+          const data = JSON.parse(xhr.responseText);
+          const message = data?.message as UploadedFile | undefined;
+          if (!message?.file_url) {
+            reject(new Error('Upload sukses tapi response tanpa file_url'));
+            return;
+          }
+          resolve(message);
+        } catch (e) {
+          reject(new Error(`Parse response gagal: ${(e as Error).message}`));
+        }
+      } else {
+        // Truncate response body untuk log
+        const body = (xhr.responseText || '').slice(0, 300);
+        reject(new Error(`Upload gagal (HTTP ${xhr.status}): ${body}`));
+      }
+    };
+    xhr.onerror = () => {
+      reject(new Error(`Network error saat upload (status ${xhr.status})`));
+    };
+    xhr.ontimeout = () => {
+      reject(new Error('Upload timeout — coba lagi'));
+    };
+    xhr.timeout = 60_000;
+
+    xhr.send(form);
+  });
 }

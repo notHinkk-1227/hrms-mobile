@@ -2,7 +2,7 @@ import React from 'react';
 import { Alert, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NavigationProp } from '@react-navigation/native';
-import { Building2, Calendar, ChevronRight, FileText, LogOut, Mail, User as UserIcon } from 'lucide-react-native';
+import { Building2, Calendar, ChevronRight, FileText, Info, LogOut, Mail, User as UserIcon } from 'lucide-react-native';
 import { Gradient } from '@shared/components/Gradient';
 import { Screen } from '@shared/components/Screen';
 import { tokens } from '@shared/theme/tokens';
@@ -10,6 +10,7 @@ import { getHost } from '@shared/utils/url';
 import { useAuthStore } from '@features/auth/store';
 import { logoutFromFrappe } from '@features/auth/authService';
 import type { MainStackParamList } from '@app/navigation/types';
+import { getFullLabel } from '@config/appInfo';
 
 function getInitials(name: string | undefined): string {
   if (!name) return '?';
@@ -101,9 +102,15 @@ export function ProfileScreen(): React.JSX.Element {
           />
           <MenuRow
             icon={<Calendar size={20} color={tokens.semantic.brand} />}
-            label="Riwayat Absen"
+            label="Riwayat Presensi"
             hint="Kalender per bulan"
             onPress={() => parent.navigate('MyAttendance')}
+          />
+          <MenuRow
+            icon={<Info size={20} color={tokens.semantic.fg2} />}
+            label="Tentang Aplikasi"
+            hint="Informasi & versi"
+            onPress={() => parent.navigate('About')}
           />
         </View>
 
@@ -146,7 +153,7 @@ export function ProfileScreen(): React.JSX.Element {
           <Text style={styles.logoutText}>Keluar</Text>
         </Pressable>
 
-        <Text style={styles.version}>Sopwer HRMS v0.0.5 · Phase 4 MVP</Text>
+        <Text style={styles.version}>{getFullLabel()}</Text>
         </View>
       </ScrollView>
     </Screen>
@@ -234,7 +241,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingTop: tokens.spacing.sp4,
     paddingHorizontal: tokens.spacing.sp4,
-    gap: 6,
+    gap: tokens.spacing.sp1_5,
   },
   avatar: {
     width: 76,
@@ -273,7 +280,7 @@ const styles = StyleSheet.create({
   tenantStrip: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: tokens.spacing.sp1,
     paddingHorizontal: 11,
     paddingVertical: 6,
     backgroundColor: 'rgba(255,255,255,0.12)',
@@ -328,7 +335,7 @@ const styles = StyleSheet.create({
     padding: tokens.spacing.sp3,
     backgroundColor: tokens.semantic.surface2,
     borderRadius: tokens.radius.md,
-    gap: 4,
+    gap: tokens.spacing.sp1,
   },
   tenantLabel: {
     fontSize: tokens.fontSize.eyebrow,

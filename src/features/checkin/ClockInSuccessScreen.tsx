@@ -1,8 +1,7 @@
 import React from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { CheckCircle2 } from 'lucide-react-native';
-import { Button } from '@shared/components/Button';
 import { Gradient } from '@shared/components/Gradient';
 import { Screen } from '@shared/components/Screen';
 import { VerificationBadge } from '@shared/components/VerificationBadge';
@@ -29,7 +28,7 @@ function formatFullDate(iso: string): string {
 
 export function ClockInSuccessScreen({ navigation, route }: Props): React.JSX.Element {
   const { result, logType } = route.params;
-  const title = logType === 'IN' ? 'Absen Masuk Berhasil' : 'Absen Pulang Berhasil';
+  const title = logType === 'IN' ? 'Presensi Masuk Berhasil' : 'Presensi Pulang Berhasil';
 
   return (
     <Gradient colors={[tokens.color.blue700, tokens.color.ink900]} angle={180} style={styles.bg}>
@@ -41,7 +40,7 @@ export function ClockInSuccessScreen({ navigation, route }: Props): React.JSX.El
             </View>
           </View>
 
-          <Text style={styles.eyebrow}>ABSEN BERHASIL</Text>
+          <Text style={styles.eyebrow}>PRESENSI BERHASIL</Text>
           <Text style={styles.title}>{title}</Text>
           <Text style={styles.bigTime}>{formatTime(result.serverTimestamp)}</Text>
           <Text style={styles.date}>{formatFullDate(result.serverTimestamp)}</Text>
@@ -75,9 +74,13 @@ export function ClockInSuccessScreen({ navigation, route }: Props): React.JSX.El
         </View>
 
         <View style={styles.cta}>
-          <Button fullWidth onPress={() => navigation.popToTop()} style={styles.ctaBtn}>
-            Kembali ke Beranda
-          </Button>
+          <Pressable
+            onPress={() => navigation.popToTop()}
+            style={({ pressed }) => [styles.ctaBtn, pressed && styles.ctaBtnPressed]}
+            accessibilityRole="button"
+          >
+            <Text style={styles.ctaBtnText}>Kembali ke Beranda</Text>
+          </Pressable>
         </View>
       </Screen>
     </Gradient>
@@ -127,7 +130,7 @@ const styles = StyleSheet.create({
   },
   bigTime: {
     fontFamily: tokens.font.display,
-    fontSize: 48,
+    fontSize: tokens.fontSize.timeLarge,
     color: tokens.color.white,
     fontWeight: '800',
     letterSpacing: -1,
@@ -166,7 +169,20 @@ const styles = StyleSheet.create({
   },
   cta: {
     paddingHorizontal: tokens.spacing.sp4,
-    paddingBottom: tokens.spacing.sp4,
+    paddingBottom: tokens.spacing.sp5,
   },
-  ctaBtn: { backgroundColor: tokens.color.white },
+  ctaBtn: {
+    height: 52,
+    borderRadius: tokens.radius.md,
+    backgroundColor: tokens.color.white,
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...tokens.shadow.md,
+  },
+  ctaBtnPressed: { opacity: 0.85 },
+  ctaBtnText: {
+    fontSize: tokens.fontSize.h4,
+    fontWeight: '700',
+    color: tokens.color.blue700,
+  },
 });

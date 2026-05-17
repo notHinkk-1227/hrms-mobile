@@ -1,7 +1,10 @@
 import React from 'react';
-import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Image, StyleSheet, Text, View } from 'react-native';
 import { Gradient } from '@shared/components/Gradient';
 import { tokens } from '@shared/theme/tokens';
+import { getVersionLabel } from '@config/appInfo';
+
+const LOGO_FULL = require('@shared/assets/brand/logo-full.png');
 
 export function SplashView(): React.JSX.Element {
   return (
@@ -11,15 +14,15 @@ export function SplashView(): React.JSX.Element {
       style={styles.container}
     >
       <View style={styles.inner}>
-        <View style={styles.logoBox}>
-          <View style={styles.logoMark}>
-            <Text style={styles.logoLetter}>S</Text>
-          </View>
+        <View style={styles.logoCard}>
+          <Image source={LOGO_FULL} style={styles.logoImage} resizeMode="contain" />
         </View>
-        <Text style={styles.title}>Sopwer HRMS</Text>
         <Text style={styles.tagline}>MAKSIMALKAN POTENSI KARYAWAN</Text>
         <ActivityIndicator color={tokens.color.yellow300} style={styles.spinner} />
         <Text style={styles.caption}>Memuat…</Text>
+      </View>
+      <View style={styles.versionWrap} pointerEvents="none">
+        <Text style={styles.versionText}>{getVersionLabel()}</Text>
       </View>
     </Gradient>
   );
@@ -28,9 +31,10 @@ export function SplashView(): React.JSX.Element {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   inner: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: tokens.spacing.sp3 },
-  logoBox: {
-    width: 104,
-    height: 104,
+  logoCard: {
+    width: 280,
+    paddingVertical: tokens.spacing.sp4,
+    paddingHorizontal: tokens.spacing.sp4,
     borderRadius: tokens.radius.xl,
     backgroundColor: tokens.color.white,
     alignItems: 'center',
@@ -38,27 +42,7 @@ const styles = StyleSheet.create({
     ...tokens.shadow.lg,
     marginBottom: tokens.spacing.sp2,
   },
-  logoMark: {
-    width: 64,
-    height: 64,
-    borderRadius: tokens.radius.lg,
-    backgroundColor: tokens.color.blue500,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  logoLetter: {
-    fontFamily: tokens.font.display,
-    fontSize: 40,
-    fontWeight: '800',
-    color: tokens.color.white,
-  },
-  title: {
-    fontFamily: tokens.font.display,
-    fontSize: 28,
-    fontWeight: '800',
-    color: tokens.color.white,
-    letterSpacing: -0.5,
-  },
+  logoImage: { width: 240, height: 93 },
   tagline: {
     fontFamily: tokens.font.mono,
     fontSize: 11,
@@ -70,5 +54,19 @@ const styles = StyleSheet.create({
   caption: {
     color: 'rgba(255,255,255,0.6)',
     fontSize: tokens.fontSize.small,
+  },
+  versionWrap: {
+    position: 'absolute',
+    bottom: tokens.spacing.sp5,
+    left: 0,
+    right: 0,
+    alignItems: 'center',
+  },
+  versionText: {
+    fontFamily: tokens.font.mono,
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 1,
+    color: tokens.color.yellow300,
   },
 });

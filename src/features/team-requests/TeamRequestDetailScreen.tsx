@@ -188,7 +188,7 @@ export function TeamRequestDetailScreen({ navigation, route }: Props): React.JSX
 }
 
 const styles = StyleSheet.create({
-  scroll: { gap: tokens.spacing.sp4, paddingBottom: 120 },
+  scroll: { gap: tokens.spacing.sp4, paddingBottom: tokens.spacing.formCtaSpace },
   center: { padding: tokens.spacing.sp5, alignItems: 'center' },
   errorText: { color: tokens.color.error },
   content: { gap: tokens.spacing.sp4 },
@@ -196,7 +196,7 @@ const styles = StyleSheet.create({
     padding: tokens.spacing.sp3,
     backgroundColor: tokens.color.blue50,
     borderRadius: tokens.radius.lg,
-    gap: 4,
+    gap: tokens.spacing.sp1,
   },
   employeeLabel: {
     fontSize: tokens.fontSize.eyebrow,
@@ -219,7 +219,7 @@ const styles = StyleSheet.create({
     padding: tokens.spacing.sp3,
     borderBottomWidth: 1,
     borderBottomColor: tokens.semantic.line,
-    gap: 4,
+    gap: tokens.spacing.sp1,
   },
   fieldLabel: {
     fontSize: tokens.fontSize.eyebrow,

@@ -163,7 +163,7 @@ const styles = StyleSheet.create({
     borderRadius: tokens.radius.lg,
     backgroundColor: tokens.color.green600,
     alignItems: 'center',
-    gap: 4,
+    gap: tokens.spacing.sp1,
   },
   netLabel: {
     fontSize: tokens.fontSize.eyebrow,
@@ -187,7 +187,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: tokens.semantic.line,
     alignItems: 'center',
-    gap: 4,
+    gap: tokens.spacing.sp1,
   },
   summaryLabel: { fontSize: tokens.fontSize.eyebrow, color: tokens.semantic.fg3, fontWeight: '700', letterSpacing: 1 },
   summaryValue: { fontSize: tokens.fontSize.h2, fontWeight: '800', color: tokens.semantic.fg1 },

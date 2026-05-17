@@ -12,6 +12,11 @@ import { TeamRequestDetailScreen } from '@features/team-requests/TeamRequestDeta
 import { SalarySlipListScreen } from '@features/salary-slip/SalarySlipListScreen';
 import { SalarySlipDetailScreen } from '@features/salary-slip/SalarySlipDetailScreen';
 import { MyAttendanceScreen } from '@features/attendance/MyAttendanceScreen';
+import { TodoListScreen } from '@features/todo/TodoListScreen';
+import { TeamCalendarScreen } from '@features/calendar/TeamCalendarScreen';
+import { EmployeeDirectoryScreen } from '@features/employees/EmployeeDirectoryScreen';
+import { EmployeeDetailScreen } from '@features/employees/EmployeeDetailScreen';
+import { AboutScreen } from '@features/about/AboutScreen';
 import type { MainStackParamList } from './types';
 
 const Stack = createNativeStackNavigator<MainStackParamList>();
@@ -35,6 +40,11 @@ export function MainStack(): React.JSX.Element {
       <Stack.Screen name="SalarySlipList" component={SalarySlipListScreen} />
       <Stack.Screen name="SalarySlipDetail" component={SalarySlipDetailScreen} />
       <Stack.Screen name="MyAttendance" component={MyAttendanceScreen} />
+      <Stack.Screen name="TodoList" component={TodoListScreen} />
+      <Stack.Screen name="TeamCalendar" component={TeamCalendarScreen} />
+      <Stack.Screen name="EmployeeDirectory" component={EmployeeDirectoryScreen} />
+      <Stack.Screen name="EmployeeDetail" component={EmployeeDetailScreen} />
+      <Stack.Screen name="About" component={AboutScreen} />
     </Stack.Navigator>
   );
 }

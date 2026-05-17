@@ -124,7 +124,7 @@ export class ClockInUseCase {
           : await this.deps.checkinPort.submitClockOut(payload);
       return { kind: 'success', result };
     } catch (e) {
-      const message = e instanceof Error ? e.message : 'Gagal absen';
+      const message = e instanceof Error ? e.message : 'Gagal mengirim presensi';
       return { kind: 'error', message };
     }
   }

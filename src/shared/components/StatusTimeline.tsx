@@ -124,7 +124,7 @@ const styles = StyleSheet.create({
   meta: {
     flex: 1,
     paddingBottom: tokens.spacing.sp3,
-    gap: 4,
+    gap: tokens.spacing.sp1,
   },
   title: { fontSize: 13, fontWeight: '600', color: tokens.semantic.fg1 },
   subtitle: {
@@ -133,7 +133,7 @@ const styles = StyleSheet.create({
     color: tokens.semantic.fg3,
     letterSpacing: 0.4,
   },
-  actorRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4 },
+  actorRow: { flexDirection: 'row', alignItems: 'center', gap: tokens.spacing.sp1_5, marginTop: 4 },
   actorAvatar: {
     width: 16,
     height: 16,

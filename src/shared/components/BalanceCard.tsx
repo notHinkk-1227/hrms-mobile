@@ -11,6 +11,8 @@ export interface BalanceCardProps {
   value: string;
   endLabel?: string;
   endValue?: string;
+  /** Multi-line stats untuk kolom kanan (e.g. [{label:'TOTAL', value:12}, {label:'TERPAKAI', value:3}]) */
+  stats?: Array<{ label: string; value: string | number }>;
 }
 
 const VARIANT_STYLE: Record<
@@ -50,6 +52,7 @@ export function BalanceCard({
   value,
   endLabel,
   endValue,
+  stats,
 }: BalanceCardProps): React.JSX.Element {
   const v = VARIANT_STYLE[variant];
   return (
@@ -59,7 +62,17 @@ export function BalanceCard({
         <Text style={[styles.title, { color: v.titleColor }]}>{title}</Text>
         <Text style={[styles.value, { color: v.valueColor }]}>{value}</Text>
       </View>
-      {endLabel && endValue ? (
+      {stats && stats.length > 0 ? (
+        <View style={styles.end}>
+          {stats.map((s) => (
+            <Text key={s.label} style={[styles.statRow, { color: v.endColor }]}>
+              <Text style={styles.statLabel}>{s.label}</Text>
+              {'  '}
+              <Text style={styles.statValue}>{s.value}</Text>
+            </Text>
+          ))}
+        </View>
+      ) : endLabel && endValue ? (
         <View style={styles.end}>
           <Text style={[styles.endLabel, { color: v.endColor }]}>{endLabel}</Text>
           <Text style={[styles.endValue, { color: v.endColor }]}>{endValue}</Text>
@@ -97,7 +110,7 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     marginTop: 2,
   },
-  end: { alignItems: 'flex-end' },
+  end: { alignItems: 'flex-end', gap: 2 },
   endLabel: {
     fontFamily: tokens.font.mono,
     fontSize: 9,
@@ -108,5 +121,19 @@ const styles = StyleSheet.create({
     fontFamily: tokens.font.mono,
     fontSize: 11,
     fontWeight: '700',
+  },
+  statRow: {
+    fontFamily: tokens.font.mono,
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 0.4,
+    textAlign: 'right',
+  },
+  statLabel: {
+    fontSize: 9,
+    letterSpacing: 0.8,
+  },
+  statValue: {
+    fontSize: 11,
   },
 });

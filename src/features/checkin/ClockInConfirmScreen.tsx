@@ -1,15 +1,17 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Image, StyleSheet, Text, View } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { AlertCircle, MapPin, Navigation } from 'lucide-react-native';
+import { AlertCircle, Camera as CameraIcon, MapPin, Navigation } from 'lucide-react-native';
 import { Button } from '@shared/components/Button';
 import { GeofencePill } from '@shared/components/GeofencePill';
 import { Screen } from '@shared/components/Screen';
+import { useToast } from '@shared/components/Toast';
 import { tokens } from '@shared/theme/tokens';
 import { useAuthStore } from '@features/auth/store';
 import { ClockInUseCase, ClockInPreview } from '@domain/usecases/clockIn';
 import { locationService } from '@infrastructure/location/locationService';
 import { checkinClient, getAllowedLocationsForToday } from '@infrastructure/api/checkinClient';
+import { uploadFile } from '@infrastructure/api/uploadClient';
 import { getDeviceFingerprint, getDeviceId } from '@infrastructure/device/deviceInfo';
 import type { HomeStackParamList } from '@app/navigation/types';
 
@@ -27,8 +29,9 @@ function formatDistance(meters: number): string {
 }
 
 export function ClockInConfirmScreen({ navigation, route }: Props): React.JSX.Element {
-  const { logType } = route.params;
+  const { logType, photoPath } = route.params;
   const employee = useAuthStore((s) => s.employee);
+  const toast = useToast();
 
   const [preview, setPreview] = useState<ClockInPreview | null>(null);
   const [loading, setLoading] = useState(true);
@@ -76,27 +79,50 @@ export function ClockInConfirmScreen({ navigation, route }: Props): React.JSX.El
       );
 
       if (outcome.kind === 'success') {
+        if (photoPath && outcome.result.name) {
+          // Upload selfie attached ke Employee Checkin doc. Tunggu hasil supaya
+          // user dapat feedback kalau upload error — checkin tetap sukses tapi
+          // selfie tidak tersimpan.
+          const uri = photoPath.startsWith('file://') ? photoPath : `file://${photoPath}`;
+          try {
+            await uploadFile({
+              uri,
+              name: `selfie-${outcome.result.name}.jpg`,
+              type: 'image/jpeg',
+              attachToDoctype: 'Employee Checkin',
+              attachToName: outcome.result.name,
+              isPrivate: true,
+            });
+          } catch (uploadErr) {
+            const msg = uploadErr instanceof Error ? uploadErr.message : 'Upload foto gagal';
+            toast.show({
+              variant: 'warning',
+              title: 'Foto selfie tidak tersimpan',
+              message: msg,
+            });
+          }
+        }
         navigation.replace('ClockInSuccess', { result: outcome.result, logType });
       } else if (outcome.kind === 'out_of_geofence') {
         Alert.alert(
           'Di luar area kantor',
           `Anda berada ${formatDistance(outcome.nearest?.distanceM ?? 0)} dari ${
             outcome.nearest?.name ?? 'lokasi kantor'
-          }. Tetap absen?`,
+          }. Tetap kirim presensi?`,
           [
             { text: 'Batal', style: 'cancel' },
-            { text: 'Tetap Absen', onPress: () => doSubmit(true) },
+            { text: 'Tetap Kirim', onPress: () => doSubmit(true) },
           ],
         );
       } else {
-        Alert.alert('Gagal absen', outcome.kind === 'error' ? outcome.message : 'Coba lagi');
+        Alert.alert('Gagal presensi', outcome.kind === 'error' ? outcome.message : 'Coba lagi');
       }
     } finally {
       setSubmitting(false);
     }
   };
 
-  const title = logType === 'IN' ? 'Absen Masuk' : 'Absen Pulang';
+  const title = logType === 'IN' ? 'Presensi Masuk' : 'Presensi Pulang';
 
   return (
     <Screen>
@@ -104,7 +130,7 @@ export function ClockInConfirmScreen({ navigation, route }: Props): React.JSX.El
         <Text style={styles.eyebrow}>KONFIRMASI</Text>
         <Text style={styles.title}>{title}</Text>
         <Text style={styles.body}>
-          Pastikan lokasi Anda sesuai sebelum mengirim absen.
+          Pastikan lokasi Anda sesuai sebelum mengirim presensi.
         </Text>
       </View>
 
@@ -123,6 +149,33 @@ export function ClockInConfirmScreen({ navigation, route }: Props): React.JSX.El
         </View>
       ) : preview ? (
         <View style={styles.previewBox}>
+          <View style={styles.selfieCard}>
+            {photoPath ? (
+              <Image source={{ uri: `file://${photoPath}` }} style={styles.selfieThumb} />
+            ) : (
+              <View style={styles.selfiePlaceholder}>
+                <CameraIcon size={24} color={tokens.semantic.fg3} />
+              </View>
+            )}
+            <View style={styles.selfieMeta}>
+              <Text style={styles.selfieLabel}>
+                {photoPath ? 'Foto selfie siap' : 'Tanpa foto selfie'}
+              </Text>
+              <Text style={styles.selfieHint}>
+                {photoPath
+                  ? 'Foto akan dilampirkan ke catatan presensi.'
+                  : 'Foto opsional untuk verifikasi.'}
+              </Text>
+            </View>
+            <Button
+              variant="ghost"
+              size="sm"
+              onPress={() => navigation.replace('ClockInCamera', { logType })}
+            >
+              {photoPath ? 'Ganti' : 'Ambil'}
+            </Button>
+          </View>
+
           <View style={styles.coordCard}>
             <View style={styles.coordRow}>
               <Navigation size={16} color={tokens.semantic.brand} />
@@ -169,7 +222,7 @@ export function ClockInConfirmScreen({ navigation, route }: Props): React.JSX.El
                   Tidak ada lokasi shift hari ini
                 </Text>
               </View>
-              <Text style={styles.locationDistance}>Absen tetap bisa dikirim.</Text>
+              <Text style={styles.locationDistance}>Presensi tetap bisa dikirim.</Text>
             </View>
           )}
         </View>
@@ -177,7 +230,7 @@ export function ClockInConfirmScreen({ navigation, route }: Props): React.JSX.El
 
       <View style={styles.cta}>
         <Button fullWidth onPress={() => doSubmit(false)} loading={submitting} disabled={!preview || loading}>
-          Kirim Absen
+          Kirim Presensi
         </Button>
         <Button variant="ghost" fullWidth onPress={() => navigation.goBack()} disabled={submitting}>
           Batal
@@ -214,13 +267,39 @@ const styles = StyleSheet.create({
   },
   errorText: { fontSize: tokens.fontSize.body, color: tokens.color.error },
   previewBox: { gap: tokens.spacing.sp3, flex: 1 },
+  selfieCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: tokens.spacing.sp3,
+    padding: tokens.spacing.sp3,
+    backgroundColor: tokens.semantic.surface,
+    borderRadius: tokens.radius.md,
+    borderWidth: 1,
+    borderColor: tokens.semantic.line,
+  },
+  selfieThumb: {
+    width: 56,
+    height: 56,
+    borderRadius: tokens.radius.sm,
+  },
+  selfiePlaceholder: {
+    width: 56,
+    height: 56,
+    borderRadius: tokens.radius.sm,
+    backgroundColor: tokens.semantic.surface2,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  selfieMeta: { flex: 1, gap: 2 },
+  selfieLabel: { fontSize: tokens.fontSize.body, color: tokens.semantic.fg1, fontWeight: '600' },
+  selfieHint: { fontSize: tokens.fontSize.caption, color: tokens.semantic.fg3 },
   coordCard: {
     padding: tokens.spacing.sp3,
     backgroundColor: tokens.semantic.surface,
     borderRadius: tokens.radius.md,
     borderWidth: 1,
     borderColor: tokens.semantic.line,
-    gap: 6,
+    gap: tokens.spacing.sp1_5,
   },
   coordRow: { flexDirection: 'row', alignItems: 'center', gap: tokens.spacing.sp1 },
   coordLabel: { fontSize: tokens.fontSize.small, fontWeight: '600', color: tokens.semantic.fg2 },
@@ -235,7 +314,7 @@ const styles = StyleSheet.create({
     padding: tokens.spacing.sp3,
     borderRadius: tokens.radius.md,
     borderWidth: 1,
-    gap: 6,
+    gap: tokens.spacing.sp1_5,
   },
   locationInside: {
     backgroundColor: tokens.color.green50,

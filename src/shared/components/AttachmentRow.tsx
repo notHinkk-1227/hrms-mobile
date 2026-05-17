@@ -97,7 +97,7 @@ export function AttachmentRow({
 }
 
 const styles = StyleSheet.create({
-  container: { gap: 6, width: '100%' },
+  container: { gap: tokens.spacing.sp1_5, width: '100%' },
   label: {
     fontSize: tokens.fontSize.small,
     color: tokens.semantic.fg2,

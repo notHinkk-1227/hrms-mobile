@@ -109,7 +109,7 @@ const styles = StyleSheet.create({
     borderColor: tokens.semantic.line,
   },
   rowPressed: { backgroundColor: tokens.semantic.surface2 },
-  rowText: { flex: 1, gap: 6 },
+  rowText: { flex: 1, gap: tokens.spacing.sp1_5 },
   rowPeriod: { fontSize: tokens.fontSize.h4, fontWeight: '700', color: tokens.semantic.fg1 },
   rowMeta: { flexDirection: 'row', alignItems: 'center', gap: tokens.spacing.sp2 },
   rowAmount: { fontSize: tokens.fontSize.body, color: tokens.color.green700, fontWeight: '700' },

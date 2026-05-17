@@ -32,7 +32,10 @@ export function StickyCta({ children, style }: StickyCtaProps): React.JSX.Elemen
     };
   }, []);
 
-  const paddingBottom = keyboardOffset > 0 ? keyboardOffset + 12 : insets.bottom + tokens.spacing.sp4;
+  const paddingBottom =
+    keyboardOffset > 0
+      ? keyboardOffset + 8
+      : Math.max(insets.bottom, tokens.spacing.sp2);
 
   return (
     <View
@@ -54,7 +57,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     paddingHorizontal: tokens.spacing.sp4,
-    paddingTop: tokens.spacing.sp3,
+    paddingTop: tokens.spacing.sp2,
     backgroundColor: tokens.semantic.surface,
     borderTopWidth: 1,
     borderTopColor: tokens.semantic.line,

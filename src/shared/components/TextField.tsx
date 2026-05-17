@@ -19,6 +19,7 @@ export function TextField({
   editable = true,
   secureTextEntry,
   toggleSecure,
+  multiline,
   ...rest
 }: TextFieldProps): React.JSX.Element {
   const [revealed, setRevealed] = useState(false);
@@ -31,16 +32,24 @@ export function TextField({
       <View
         style={[
           styles.inputWrapper,
+          multiline ? styles.inputWrapperMultiline : null,
           error ? styles.inputError : null,
           !editable && styles.inputDisabled,
         ]}
       >
         <TextInput
           {...rest}
+          multiline={multiline}
           editable={editable}
           secureTextEntry={effectiveSecure}
           placeholderTextColor={tokens.color.ink300}
-          style={[styles.input, showToggle && styles.inputWithToggle, style]}
+          textAlignVertical={multiline ? 'top' : 'center'}
+          style={[
+            styles.input,
+            multiline ? styles.inputMultiline : null,
+            showToggle && styles.inputWithToggle,
+            style,
+          ]}
         />
         {showToggle ? (
           <Pressable
@@ -64,7 +73,7 @@ export function TextField({
 }
 
 const styles = StyleSheet.create({
-  container: { gap: 6, width: '100%' },
+  container: { gap: tokens.spacing.sp1_5, width: '100%' },
   label: {
     fontSize: tokens.fontSize.small,
     color: tokens.semantic.fg2,
@@ -79,12 +88,22 @@ const styles = StyleSheet.create({
     borderRadius: tokens.radius.md,
     backgroundColor: tokens.semantic.surface,
   },
+  inputWrapperMultiline: {
+    height: undefined,
+    minHeight: 48,
+    alignItems: 'stretch',
+  },
   input: {
     flex: 1,
     height: '100%',
     paddingHorizontal: tokens.spacing.sp3,
     fontSize: tokens.fontSize.body,
     color: tokens.semantic.fg1,
+  },
+  inputMultiline: {
+    height: undefined,
+    paddingTop: tokens.spacing.sp2,
+    paddingBottom: tokens.spacing.sp2,
   },
   inputWithToggle: { paddingRight: 0 },
   inputError: { borderColor: tokens.color.error },

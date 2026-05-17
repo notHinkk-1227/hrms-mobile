@@ -57,7 +57,7 @@ const styles = StyleSheet.create({
   pill: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: tokens.spacing.sp1_5,
     borderRadius: tokens.radius.full,
     alignSelf: 'flex-start',
   },

@@ -88,6 +88,8 @@ export const tokens = {
   fontSize: {
     displayXl: 88,
     display: 64,
+    timeHero: 56, // ClockInHero clock display
+    timeLarge: 48, // ClockInSuccess / CheckinDetail jam besar
     h1: 36,
     h2: 22,
     h3: 18,
@@ -100,6 +102,25 @@ export const tokens = {
     monoSm: 11,
   },
 
+  lineHeight: {
+    timeHero: 60,
+    timeLarge: 52,
+    body: 22,
+    small: 20,
+  },
+
+  iconSize: {
+    sm: 14,
+    md: 18,
+    lg: 24,
+    xl: 32,
+  },
+
+  touchTarget: {
+    min: 44,
+    comfortable: 48,
+  },
+
   fontWeight: {
     regular: '400',
     medium: '500',
@@ -110,6 +131,7 @@ export const tokens = {
 
   spacing: {
     sp1: 4,
+    sp1_5: 6,
     sp2: 8,
     sp3: 13,
     sp4: 21,
@@ -118,6 +140,7 @@ export const tokens = {
     sp7: 89,
     sp8: 144,
     sp9: 233,
+    formCtaSpace: 88, // paddingBottom scroll content saat ada StickyCta
   },
 
   radius: {

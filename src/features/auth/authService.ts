@@ -13,6 +13,10 @@ const EMPLOYEE_FIELDS = [
   'status',
   'date_of_joining',
   'company',
+  'branch',
+  'reports_to',
+  'cell_number',
+  'holiday_list',
 ];
 
 export interface LoginResult {
@@ -57,6 +61,10 @@ async function fetchEmployeeForUser(client: AxiosInstance, userId: string): Prom
     status: e.status ?? null,
     date_of_joining: e.date_of_joining ?? null,
     company: e.company ?? null,
+    branch: e.branch ?? null,
+    reports_to: e.reports_to ?? null,
+    cell_number: e.cell_number ?? null,
+    holiday_list: e.holiday_list ?? null,
   };
 }
 

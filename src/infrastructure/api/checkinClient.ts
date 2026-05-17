@@ -27,6 +27,90 @@ export interface FrappeEmployeeCheckin {
   latitude: number | null;
   longitude: number | null;
   device_id: string | null;
+  shift?: string | null;
+  employee_name?: string | null;
+}
+
+export interface CheckinAttachment {
+  name: string;
+  file_name: string;
+  file_url: string;
+  is_image: 0 | 1;
+}
+
+export async function listCheckinHistory(
+  employee: string,
+  limit = 50,
+): Promise<FrappeEmployeeCheckin[]> {
+  try {
+    const client = createTenantClient();
+    const response = await client.get('/api/resource/Employee Checkin', {
+      params: {
+        filters: JSON.stringify([['employee', '=', employee]]),
+        fields: JSON.stringify([
+          'name',
+          'employee',
+          'log_type',
+          'time',
+          'latitude',
+          'longitude',
+          'device_id',
+        ]),
+        order_by: 'time desc',
+        limit_page_length: limit,
+      },
+    });
+    return response.data?.data ?? [];
+  } catch (e) {
+    throw toApiError(e);
+  }
+}
+
+export async function getCheckin(name: string): Promise<FrappeEmployeeCheckin | null> {
+  try {
+    const client = createTenantClient();
+    const response = await client.get(
+      `/api/resource/Employee Checkin/${encodeURIComponent(name)}`,
+      {
+        params: {
+          fields: JSON.stringify([
+            'name',
+            'employee',
+            'employee_name',
+            'log_type',
+            'time',
+            'latitude',
+            'longitude',
+            'device_id',
+            'shift',
+          ]),
+        },
+      },
+    );
+    return (response.data?.data as FrappeEmployeeCheckin | null) ?? null;
+  } catch (e) {
+    throw toApiError(e);
+  }
+}
+
+export async function listCheckinAttachments(name: string): Promise<CheckinAttachment[]> {
+  try {
+    const client = createTenantClient();
+    const response = await client.get('/api/resource/File', {
+      params: {
+        filters: JSON.stringify([
+          ['attached_to_doctype', '=', 'Employee Checkin'],
+          ['attached_to_name', '=', name],
+        ]),
+        fields: JSON.stringify(['name', 'file_name', 'file_url', 'is_image']),
+        order_by: 'creation desc',
+        limit_page_length: 10,
+      },
+    });
+    return response.data?.data ?? [];
+  } catch (e) {
+    throw toApiError(e);
+  }
 }
 
 export async function getLastCheckinToday(employee: string): Promise<FrappeEmployeeCheckin | null> {

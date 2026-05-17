@@ -252,7 +252,7 @@ const styles = StyleSheet.create({
     padding: tokens.spacing.sp3,
     borderBottomWidth: 1,
     borderBottomColor: tokens.semantic.line,
-    gap: 4,
+    gap: tokens.spacing.sp1,
   },
   fieldLabel: {
     fontSize: tokens.fontSize.eyebrow,
@@ -271,7 +271,7 @@ const styles = StyleSheet.create({
     borderRadius: tokens.radius.md,
     borderWidth: 1,
     borderColor: tokens.semantic.line,
-    gap: 4,
+    gap: tokens.spacing.sp1,
   },
   itemDesc: { fontSize: tokens.fontSize.body, fontWeight: '600', color: tokens.semantic.fg1 },
   itemMeta: { fontSize: tokens.fontSize.small, color: tokens.semantic.fg3 },

@@ -8,11 +8,11 @@ import { useAuthStore } from './store';
 const BULLETS = [
   {
     title: 'Lokasi GPS',
-    body: 'Aplikasi mengambil lokasi GPS Anda saat absen masuk dan absen pulang untuk verifikasi kehadiran. Lokasi tidak diambil di luar momen absen.',
+    body: 'Aplikasi mengambil lokasi GPS Anda saat presensi masuk dan presensi pulang untuk verifikasi kehadiran. Lokasi tidak diambil di luar momen presensi.',
   },
   {
     title: 'Foto Selfie',
-    body: 'Aplikasi mengambil foto selfie saat absen untuk verifikasi identitas. Foto disimpan di server perusahaan Anda.',
+    body: 'Aplikasi mengambil foto selfie saat presensi untuk verifikasi identitas. Foto disimpan di server perusahaan Anda.',
   },
   {
     title: 'Data Anda',
@@ -20,7 +20,7 @@ const BULLETS = [
   },
   {
     title: 'Sesuai UU PDP',
-    body: 'Pengumpulan data ini sesuai dengan UU Perlindungan Data Pribadi (UU 27/2022). Anda dapat menolak dengan tidak menggunakan fitur absen.',
+    body: 'Pengumpulan data ini sesuai dengan UU Perlindungan Data Pribadi (UU 27/2022). Anda dapat menolak dengan tidak menggunakan fitur presensi.',
   },
 ] as const;
 
@@ -77,7 +77,7 @@ const styles = StyleSheet.create({
     borderRadius: tokens.radius.lg,
     borderWidth: 1,
     borderColor: tokens.semantic.line,
-    gap: 6,
+    gap: tokens.spacing.sp1_5,
   },
   bulletTitle: { fontSize: tokens.fontSize.h4, fontWeight: '700', color: tokens.semantic.fg1 },
   bulletBody: { fontSize: tokens.fontSize.small, color: tokens.semantic.fg3, lineHeight: 20 },

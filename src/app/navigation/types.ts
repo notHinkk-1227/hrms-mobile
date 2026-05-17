@@ -10,8 +10,12 @@ export type AuthStackParamList = {
 
 export type HomeStackParamList = {
   HomeMain: undefined;
-  ClockInConfirm: { logType: LogType };
+  ClockInCamera: { logType: LogType };
+  ClockInConfirm: { logType: LogType; photoPath?: string };
   ClockInSuccess: { result: ClockInResult; logType: LogType };
+  CheckinHistory: undefined;
+  CheckinDetail: { name: string };
+  Notifications: undefined;
 };
 
 export type MainTabsParamList = {
@@ -41,6 +45,11 @@ export type MainStackParamList = {
   SalarySlipList: undefined;
   SalarySlipDetail: { name: string };
   MyAttendance: undefined;
+  TodoList: undefined;
+  TeamCalendar: undefined;
+  EmployeeDirectory: undefined;
+  EmployeeDetail: { name: string };
+  About: undefined;
 };
 
 export type RootStackParamList = {

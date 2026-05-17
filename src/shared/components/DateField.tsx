@@ -23,7 +23,7 @@ function toIsoDate(d: Date): string {
 function formatDisplay(iso: string | null, placeholder: string): string {
   if (!iso) return placeholder;
   const d = new Date(iso + 'T00:00:00');
-  return d.toLocaleDateString('id-ID', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
+  return d.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' });
 }
 
 export function DateField({
@@ -75,7 +75,7 @@ export function DateField({
 }
 
 const styles = StyleSheet.create({
-  container: { gap: 6, width: '100%' },
+  container: { gap: tokens.spacing.sp1_5, width: '100%' },
   label: {
     fontSize: tokens.fontSize.small,
     color: tokens.semantic.fg2,

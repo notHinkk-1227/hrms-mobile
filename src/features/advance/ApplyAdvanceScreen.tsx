@@ -1,24 +1,28 @@
 import React, { useEffect, useState } from 'react';
-import { Alert, ScrollView, StyleSheet, View } from 'react-native';
+import { ScrollView, StyleSheet, View } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Button } from '@shared/components/Button';
+import { NoticeCard } from '@shared/components/NoticeCard';
 import { Screen } from '@shared/components/Screen';
 import { Select } from '@shared/components/Select';
 import { StickyCta } from '@shared/components/StickyCta';
 import { DateField } from '@shared/components/DateField';
 import { TextField } from '@shared/components/TextField';
 import { CurrencyInput } from '@shared/components/CurrencyInput';
+import { useToast } from '@shared/components/Toast';
 import { FormHeader } from '@features/forms/FormHeader';
 import { tokens } from '@shared/theme/tokens';
 import { useAuthStore } from '@features/auth/store';
 import { advanceApi, ModeOfPayment } from '@infrastructure/api/hrmsClient';
 import { ApiError } from '@infrastructure/api/errors';
+import { translateFrappeError } from '@infrastructure/api/errorTranslator';
 import type { MainStackParamList } from '@app/navigation/types';
 
 type Props = NativeStackScreenProps<MainStackParamList, 'ApplyAdvance'>;
 
 export function ApplyAdvanceScreen({ navigation }: Props): React.JSX.Element {
   const employee = useAuthStore((s) => s.employee);
+  const toast = useToast();
 
   const [modes, setModes] = useState<ModeOfPayment[]>([]);
   const [loadingModes, setLoadingModes] = useState(true);
@@ -30,6 +34,7 @@ export function ApplyAdvanceScreen({ navigation }: Props): React.JSX.Element {
   const [modeOfPayment, setModeOfPayment] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [errors, setErrors] = useState<Record<string, string | undefined>>({});
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   useEffect(() => {
     advanceApi
@@ -42,6 +47,7 @@ export function ApplyAdvanceScreen({ navigation }: Props): React.JSX.Element {
   }, []);
 
   const onSubmit = async () => {
+    setSubmitError(null);
     const newErrors: Record<string, string> = {};
     if (!purpose.trim()) newErrors.purpose = 'Keperluan wajib diisi';
     if (!amount || amount <= 0) newErrors.amount = 'Jumlah harus lebih dari 0';
@@ -50,7 +56,7 @@ export function ApplyAdvanceScreen({ navigation }: Props): React.JSX.Element {
     if (Object.keys(newErrors).length > 0 || !employee?.name) return;
 
     if (!employee.company) {
-      Alert.alert('Data perusahaan kosong', 'Hubungi HR untuk lengkapi data karyawan.');
+      setSubmitError('Data perusahaan kosong di profil Anda. Hubungi HR untuk melengkapi.');
       return;
     }
 
@@ -73,7 +79,9 @@ export function ApplyAdvanceScreen({ navigation }: Props): React.JSX.Element {
       });
     } catch (e) {
       const apiError = e as ApiError;
-      Alert.alert('Gagal mengirim kasbon', apiError.message || 'Coba lagi');
+      const msg = translateFrappeError(apiError.message);
+      setSubmitError(msg);
+      toast.show({ variant: 'error', title: 'Gagal mengirim kasbon', message: msg });
     } finally {
       setSubmitting(false);
     }
@@ -82,21 +90,35 @@ export function ApplyAdvanceScreen({ navigation }: Props): React.JSX.Element {
   return (
     <Screen>
       <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
-        <FormHeader title="Ajukan Kasbon" subtitle="Permohonan uang muka" onBack={() => navigation.goBack()} />
+        <FormHeader title="Ajukan Kasbon" onBack={() => navigation.goBack()} />
 
         <View style={styles.form}>
-          <DateField label="Tanggal Pengajuan" value={postingDate} onChange={setPostingDate} error={errors.postingDate} />
+          <DateField
+            label="Tanggal Pengajuan"
+            value={postingDate}
+            onChange={(v) => {
+              setPostingDate(v);
+              setSubmitError(null);
+            }}
+            error={errors.postingDate}
+          />
           <CurrencyInput
             label="Jumlah Kasbon"
             value={amount}
-            onChange={setAmount}
+            onChange={(v) => {
+              setAmount(v);
+              setSubmitError(null);
+            }}
             error={errors.amount}
             hint="Akan dipotong dari gaji bulan depan"
           />
           <TextField
             label="Keperluan"
             value={purpose}
-            onChangeText={setPurpose}
+            onChangeText={(t) => {
+              setPurpose(t);
+              setSubmitError(null);
+            }}
             placeholder="Jelaskan keperluan kasbon"
             multiline
             numberOfLines={4}
@@ -111,20 +133,32 @@ export function ApplyAdvanceScreen({ navigation }: Props): React.JSX.Element {
             placeholder={loadingModes ? 'Memuat…' : 'Pilih mode pembayaran'}
             loading={loadingModes}
           />
+
+          {submitError ? (
+            <NoticeCard variant="error" title="Tidak bisa mengirim kasbon" body={submitError} />
+          ) : null}
         </View>
       </ScrollView>
 
       <StickyCta>
-        <Button fullWidth onPress={onSubmit} loading={submitting}>
-          Kirim Permohonan
-        </Button>
+        <View style={styles.ctaRow}>
+          <Button variant="outline" style={styles.ctaCancel} onPress={() => navigation.goBack()}>
+            Batal
+          </Button>
+          <Button style={styles.ctaSubmit} onPress={onSubmit} loading={submitting}>
+            Kirim Permohonan
+          </Button>
+        </View>
       </StickyCta>
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  scroll: { gap: tokens.spacing.sp4, paddingBottom: 120 },
+  scroll: { gap: tokens.spacing.sp4, paddingBottom: tokens.spacing.formCtaSpace },
   form: { gap: tokens.spacing.sp3 },
   textArea: { height: 96, paddingTop: tokens.spacing.sp2, textAlignVertical: 'top' },
+  ctaRow: { flexDirection: 'row', gap: tokens.spacing.sp2 },
+  ctaCancel: { flex: 1 },
+  ctaSubmit: { flex: 2 },
 });

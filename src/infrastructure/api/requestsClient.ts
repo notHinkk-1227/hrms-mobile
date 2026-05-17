@@ -69,7 +69,7 @@ export function getDoctypeLabel(doctype: string): string {
     case 'Employee Advance':
       return 'Kasbon';
     case 'Attendance Request':
-      return 'Koreksi Absen';
+      return 'Koreksi Presensi';
     case 'Shift Request':
       return 'Ganti Shift';
     default:
@@ -85,6 +85,7 @@ export function getStatusVariant(status: string): 'success' | 'warning' | 'error
     case 'Open':
     case 'Draft':
     case 'Submitted':
+    case 'Unpaid':
       return 'warning';
     case 'Rejected':
     case 'Cancelled':
@@ -101,15 +102,16 @@ export function getStatusLabel(status: string): string {
     case 'Rejected':
       return 'Ditolak';
     case 'Open':
+    case 'Submitted':
       return 'Menunggu Persetujuan';
     case 'Cancelled':
       return 'Dibatalkan';
     case 'Draft':
       return 'Draf';
-    case 'Submitted':
-      return 'Terkirim';
     case 'Paid':
       return 'Dibayar';
+    case 'Unpaid':
+      return 'Belum Dibayar';
     default:
       return status;
   }

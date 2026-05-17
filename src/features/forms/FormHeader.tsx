@@ -31,10 +31,11 @@ const styles = StyleSheet.create({
     marginBottom: tokens.spacing.sp4,
   },
   backBtn: {
-    width: 40,
-    height: 40,
+    width: tokens.touchTarget.comfortable,
+    height: tokens.touchTarget.comfortable,
     alignItems: 'center',
     justifyContent: 'center',
+    marginLeft: -tokens.spacing.sp2, // optical: tarik kiri biar tidak terlihat menjorok
   },
   text: { flex: 1 },
   title: { fontSize: tokens.fontSize.h2, fontWeight: '800', color: tokens.semantic.fg1 },

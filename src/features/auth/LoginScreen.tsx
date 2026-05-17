@@ -182,7 +182,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: tokens.color.blue100,
     marginBottom: tokens.spacing.sp4,
-    gap: 6,
+    gap: tokens.spacing.sp1_5,
   },
   tenantRow: {
     flexDirection: 'row',

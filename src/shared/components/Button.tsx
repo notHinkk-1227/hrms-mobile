@@ -76,9 +76,9 @@ const styles = StyleSheet.create({
 });
 
 const sizeStyles: Record<Size, ViewStyle> = {
-  lg: { height: 48, paddingHorizontal: tokens.spacing.sp4 },
+  lg: { height: tokens.touchTarget.comfortable, paddingHorizontal: tokens.spacing.sp4 },
   md: { height: 40, paddingHorizontal: tokens.spacing.sp3 },
-  sm: { height: 32, paddingHorizontal: tokens.spacing.sp2 },
+  sm: { height: 36, paddingHorizontal: tokens.spacing.sp3 },
 };
 
 const textSize: Record<Size, TextStyle> = {

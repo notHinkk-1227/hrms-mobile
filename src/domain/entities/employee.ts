@@ -10,4 +10,8 @@ export interface Employee {
   status: EmployeeStatus | null;
   date_of_joining: string | null;
   company: string | null;
+  branch: string | null;
+  reports_to: string | null;
+  cell_number: string | null;
+  holiday_list: string | null;
 }

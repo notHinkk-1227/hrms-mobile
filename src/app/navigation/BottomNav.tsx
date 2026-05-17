@@ -136,7 +136,7 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 4,
+    gap: tokens.spacing.sp1,
   },
   tabLabel: {
     fontSize: tokens.fontSize.caption,

@@ -214,7 +214,7 @@ const styles = StyleSheet.create({
   subtitle: { fontSize: tokens.fontSize.small, color: tokens.semantic.fg3 },
   statsBar: {
     flexDirection: 'row',
-    gap: 6,
+    gap: tokens.spacing.sp1_5,
     marginTop: tokens.spacing.sp2,
   },
   statBox: {
@@ -240,7 +240,7 @@ const styles = StyleSheet.create({
   tab: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: tokens.spacing.sp1_5,
     paddingHorizontal: tokens.spacing.sp3,
     paddingVertical: tokens.spacing.sp2,
     borderRadius: tokens.radius.full,
@@ -267,7 +267,7 @@ const styles = StyleSheet.create({
     borderRadius: tokens.radius.lg,
     borderWidth: 1,
     borderColor: tokens.semantic.line,
-    gap: 4,
+    gap: tokens.spacing.sp1,
   },
   rowPressed: { backgroundColor: tokens.semantic.surface2 },
   rowMeta: {
