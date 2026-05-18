@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { Building2, Fingerprint, Globe } from 'lucide-react-native';
+import { Building2, Fingerprint, Globe, Repeat } from 'lucide-react-native';
 import { AuthFooter } from '@shared/components/AuthFooter';
 import { Button } from '@shared/components/Button';
 import { Screen } from '@shared/components/Screen';
@@ -62,6 +62,26 @@ export function LoginScreen({ navigation }: Props): React.JSX.Element {
       }
     });
   }, [biometricEnabled]);
+
+  const onChangeTenant = () => {
+    Alert.alert(
+      'Ganti Kode Tenant?',
+      'Anda akan kembali ke halaman input kode tenant. Pengaturan akun di tenant ini tidak terpengaruh.',
+      [
+        { text: 'Batal', style: 'cancel' },
+        {
+          text: 'Ganti',
+          style: 'destructive',
+          onPress: () => {
+            clearTenant();
+            // pickInitialRoute di AuthStack dievaluasi sekali saat mount, jadi
+            // perlu navigasi explicit ke TenantCode supaya UI sinkron dengan state.
+            navigation.replace('TenantCode');
+          },
+        },
+      ],
+    );
+  };
 
   const onBiometricLogin = async () => {
     if (!bioSession) return;
@@ -188,9 +208,24 @@ export function LoginScreen({ navigation }: Props): React.JSX.Element {
 
       {tenantName ? (
         <View style={styles.tenantCard}>
-          <View style={styles.tenantRow}>
-            <Building2 size={18} color={tokens.semantic.brand} />
-            <Text style={styles.tenantName}>{tenantName}</Text>
+          <View style={styles.tenantHeader}>
+            <View style={styles.tenantRow}>
+              <Building2 size={18} color={tokens.semantic.brand} />
+              <Text style={styles.tenantName} numberOfLines={1}>
+                {tenantName}
+              </Text>
+            </View>
+            <Pressable
+              onPress={onChangeTenant}
+              hitSlop={12}
+              style={({ pressed }) => [
+                styles.changeTenantIcon,
+                pressed && styles.changeTenantIconPressed,
+              ]}
+              accessibilityLabel="Ganti Kode Tenant"
+            >
+              <Repeat size={16} color={tokens.semantic.fg3} />
+            </Pressable>
           </View>
           <View style={styles.tenantUrlRow}>
             <Globe size={12} color={tokens.semantic.fg3} />
@@ -260,9 +295,6 @@ export function LoginScreen({ navigation }: Props): React.JSX.Element {
             </Pressable>
           ) : null}
         </View>
-        <Button variant="ghost" fullWidth onPress={clearTenant} disabled={loading}>
-          Ganti Kode Tenant
-        </Button>
       </View>
       <AuthFooter />
     </Screen>
@@ -288,10 +320,27 @@ const styles = StyleSheet.create({
     marginBottom: tokens.spacing.sp4,
     gap: tokens.spacing.sp1_5,
   },
-  tenantRow: {
+  tenantHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: tokens.spacing.sp2,
+  },
+  tenantRow: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: tokens.spacing.sp2,
+  },
+  changeTenantIcon: {
+    width: 28,
+    height: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: tokens.radius.full,
+    backgroundColor: tokens.color.blue100,
+  },
+  changeTenantIconPressed: {
+    opacity: 0.6,
   },
   tenantName: {
     fontSize: tokens.fontSize.h4,
