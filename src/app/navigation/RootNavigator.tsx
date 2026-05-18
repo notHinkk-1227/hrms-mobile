@@ -1,10 +1,12 @@
-import React, { useEffect, useState } from 'react';
-import { NavigationContainer } from '@react-navigation/native';
+import React, { useEffect, useRef, useState } from 'react';
+import { NavigationContainer, NavigationContainerRef } from '@react-navigation/native';
 import { authEvents } from '@infrastructure/api/authEvents';
 import { useFeaturesStore } from '@infrastructure/api/featureDetect';
 import { biometricService } from '@infrastructure/biometric/biometricService';
 import { pairDeviceQuiet } from '@infrastructure/device/devicePairService';
 import { realtimeService } from '@infrastructure/realtime/realtimeService';
+import { pushService } from '@infrastructure/push/pushService';
+import { parsePushMessage, navigateFromPush } from '@infrastructure/push/pushHandler';
 import { useAuthStore } from '@features/auth/store';
 import { AuthStack } from './AuthStack';
 import { MainStack } from './MainStack';
@@ -24,6 +26,8 @@ export function RootNavigator(): React.JSX.Element {
   const hydrateFeatures = useFeaturesStore((s) => s.hydrate);
   const refreshFeatures = useFeaturesStore((s) => s.refresh);
 
+  const navigationRef = useRef<NavigationContainerRef<any> | null>(null);
+
   useEffect(() => {
     hydrate();
     hydrateFeatures();
@@ -35,13 +39,47 @@ export function RootNavigator(): React.JSX.Element {
     if (!isAuthenticated) return;
     (async () => {
       await refreshFeatures();
-      // Auto-pair device kalau enhanced mode dengan device_binding aktif
       const features = useFeaturesStore.getState().features;
+      // Auto-pair device kalau enhanced mode dengan device_binding aktif
       if (features.hasSopwerHrms && features.deviceBinding) {
         pairDeviceQuiet().catch(() => undefined);
       }
+      // Register FCM token kalau backend support push. Fail-soft kalau native
+      // module belum di-link (build dev tanpa google-services.json).
+      if (features.hasSopwerHrms && features.push && pushService.isAvailable()) {
+        pushService.registerToken().catch(() => undefined);
+      }
     })();
   }, [isAuthenticated, refreshFeatures]);
+
+  // FCM listeners — foreground message + tap deep link. Cleanup di unmount.
+  useEffect(() => {
+    if (!isAuthenticated || !pushService.isAvailable()) return undefined;
+    const unsubMsg = pushService.onMessage((remoteMessage) => {
+      // Foreground: socket.io sudah handle UI refresh (toast + badge). FCM
+      // foreground hanya log untuk debug, tidak duplicate UI.
+      console.log('[push] foreground message:', remoteMessage?.data);
+    });
+    const unsubOpen = pushService.onNotificationOpenedApp((remoteMessage) => {
+      const msg = parsePushMessage(remoteMessage);
+      navigateFromPush(navigationRef.current, msg);
+    });
+    const unsubRefresh = pushService.onTokenRefresh(() => {
+      pushService.registerToken(true).catch(() => undefined);
+    });
+    // Cold start dari tap
+    pushService.getInitialNotification().then((remoteMessage) => {
+      if (!remoteMessage) return;
+      const msg = parsePushMessage(remoteMessage);
+      // Delay supaya nav stack siap
+      setTimeout(() => navigateFromPush(navigationRef.current, msg), 500);
+    });
+    return () => {
+      unsubMsg();
+      unsubOpen();
+      unsubRefresh();
+    };
+  }, [isAuthenticated]);
 
   useEffect(() => {
     return authEvents.onUnauthorized(() => {
@@ -100,5 +138,9 @@ export function RootNavigator(): React.JSX.Element {
 
   const showMain = isAuthenticated && privacyAccepted;
 
-  return <NavigationContainer>{showMain ? <MainStack /> : <AuthStack />}</NavigationContainer>;
+  return (
+    <NavigationContainer ref={navigationRef}>
+      {showMain ? <MainStack /> : <AuthStack />}
+    </NavigationContainer>
+  );
 }

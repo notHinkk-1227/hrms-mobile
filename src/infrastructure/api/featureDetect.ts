@@ -14,6 +14,7 @@ export interface BackendFeatures {
   deviceBinding: boolean;
   scoring: boolean;
   inbox: boolean;
+  push: boolean;
   // Config
   geofenceDefaultRadiusM: number;
   shiftTimeGraceMin: number;
@@ -31,6 +32,7 @@ export const STANDARD_MODE: BackendFeatures = {
   deviceBinding: false,
   scoring: false,
   inbox: false,
+  push: false,
   geofenceDefaultRadiusM: 100,
   shiftTimeGraceMin: 15,
   autoPairFirstDevice: false,
@@ -55,6 +57,7 @@ interface PingResponse {
     device_binding?: boolean;
     scoring?: boolean;
     inbox?: boolean;
+    push?: boolean;
   };
   config: {
     geofence_default_radius_m?: number;
@@ -77,6 +80,7 @@ function fromPing(raw: PingResponse): BackendFeatures {
     deviceBinding: !!f.device_binding,
     scoring: !!f.scoring,
     inbox: !!f.inbox,
+    push: !!f.push,
     geofenceDefaultRadiusM: c.geofence_default_radius_m ?? 100,
     shiftTimeGraceMin: c.shift_time_grace_min ?? 15,
     autoPairFirstDevice: c.auto_pair_first_device ?? false,

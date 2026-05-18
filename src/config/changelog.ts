@@ -11,6 +11,16 @@ export interface ChangelogEntry {
  */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '1.3.0',
+    date: '2026-05-18',
+    items: [
+      'Push notification saat app tertutup — pengumuman, tugas baru, dan persetujuan permohonan langsung masuk ke notification tray Android',
+      'Auto-subscribe ke topic broadcast pengumuman saat login (per tenant)',
+      'Tap notif → langsung buka screen yang sesuai (Inbox detail, Task list, Request detail)',
+      'Pakai Frappe Cloud Notification Relay open-source (self-host, FCM gratis) — multi-app Sopwer share infra',
+    ],
+  },
+  {
     version: '1.2.0',
     date: '2026-05-17',
     items: [

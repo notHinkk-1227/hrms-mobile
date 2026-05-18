@@ -2,6 +2,12 @@ apply plugin: "com.android.application"
 apply plugin: "org.jetbrains.kotlin.android"
 apply plugin: "com.facebook.react"
 
+// Firebase Google Services — apply hanya kalau google-services.json ada.
+// Supaya build tetap jalan di dev environment tanpa Firebase config.
+if (file('google-services.json').exists()) {
+    apply plugin: "com.google.gms.google-services"
+}
+
 def keystorePropertiesFile = rootProject.file('keystore.properties')
 def keystoreProperties = new Properties()
 if (keystorePropertiesFile.exists()) {
@@ -88,8 +94,8 @@ android {
         applicationId "com.sopwer.hadir"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 39
-        versionName "1.2.0"
+        versionCode 40
+        versionName "1.3.0"
         externalNativeBuild {
             cmake {
                 // NDK 27 sudah hapus 'gold' linker; CMake IPO/LTO check pakai

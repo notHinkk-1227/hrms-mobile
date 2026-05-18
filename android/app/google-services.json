@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "244811145146",
+    "project_id": "hadir-by-sopwer",
+    "storage_bucket": "hadir-by-sopwer.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:244811145146:android:56ebfc83120b4004f98783",
+        "android_client_info": {
+          "package_name": "com.sopwer.hadir"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB_ukflMXrGVycaecwMMohMnn-DSM6_vzA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

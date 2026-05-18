@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, Image, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, ImageBackground, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { AlertCircle, Camera as CameraIcon, MapPin, Navigation } from 'lucide-react-native';
+import { AlertCircle, Camera as CameraIcon, CheckCircle2, MapPin, RefreshCw } from 'lucide-react-native';
 import { Button } from '@shared/components/Button';
 import { Screen } from '@shared/components/Screen';
 import { StickyCta } from '@shared/components/StickyCta';
@@ -28,6 +28,104 @@ const useCase = new ClockInUseCase({
 function formatDistance(meters: number): string {
   if (meters < 1000) return `${Math.round(meters)} m`;
   return `${(meters / 1000).toFixed(2)} km`;
+}
+
+interface PhotoHeroProps {
+  photoPath: string | undefined;
+  preview: ClockInPreview;
+  onReplace: () => void;
+}
+
+/**
+ * Foto selfie full-width sebagai hero, dengan info GPS + lokasi overlay
+ * menempel di pojok bawah foto. Kalau tidak ada foto, render placeholder
+ * dengan icon kamera + tap untuk ambil.
+ */
+function PhotoHero({ photoPath, preview, onReplace }: PhotoHeroProps): React.JSX.Element {
+  const inside = !!(preview.nearest && preview.nearest.inside);
+  const outside = !!(preview.nearest && !preview.nearest.inside);
+  const lat = preview.coordinate.latitude.toFixed(6);
+  const lon = preview.coordinate.longitude.toFixed(6);
+  const accuracy = Math.round(preview.coordinate.accuracyMeters);
+
+  let statusLabel: string;
+  let statusColor: string;
+  if (inside) {
+    statusLabel = 'DI DALAM RADIUS';
+    statusColor = tokens.color.green300;
+  } else if (outside) {
+    statusLabel = `${formatDistance(preview.nearest!.distanceM)} DARI TITIK`;
+    statusColor = '#FFB4B4';
+  } else {
+    statusLabel = 'TANPA LOKASI SHIFT';
+    statusColor = '#FFE08A';
+  }
+  const locationName =
+    preview.nearest?.locationName ?? preview.nearest?.name ?? 'Lokasi GPS';
+
+  const content = (
+    <>
+      {/* Top-right action button */}
+      <Pressable
+        onPress={onReplace}
+        style={styles.replaceBtn}
+        hitSlop={8}
+        accessibilityLabel={photoPath ? 'Ganti foto selfie' : 'Ambil foto selfie'}
+      >
+        <RefreshCw size={14} color="#FFFFFF" />
+        <Text style={styles.replaceBtnText}>{photoPath ? 'Ganti' : 'Ambil'}</Text>
+      </Pressable>
+
+      {/* Overlay info bawah */}
+      <View style={styles.overlay}>
+        <View style={styles.overlayTopRow}>
+          {inside ? (
+            <CheckCircle2 size={18} color={tokens.color.green300} />
+          ) : outside ? (
+            <AlertCircle size={18} color="#FFB4B4" />
+          ) : (
+            <AlertCircle size={18} color="#FFE08A" />
+          )}
+          <Text style={[styles.overlayStatus, { color: statusColor }]} numberOfLines={1}>
+            {statusLabel}
+          </Text>
+        </View>
+        <View style={styles.overlayLocationRow}>
+          <MapPin size={16} color="#FFFFFF" />
+          <Text style={styles.overlayLocationName} numberOfLines={1}>
+            {locationName}
+          </Text>
+        </View>
+        <View style={styles.overlayDivider} />
+        <Text style={styles.overlayCoord}>
+          {lat}, {lon}
+        </Text>
+        <Text style={styles.overlayCoordMeta}>Akurasi ±{accuracy} m</Text>
+      </View>
+    </>
+  );
+
+  if (!photoPath) {
+    return (
+      <Pressable onPress={onReplace} style={styles.heroPlaceholder} accessibilityRole="button">
+        <View style={styles.placeholderCenter}>
+          <CameraIcon size={36} color="#FFFFFF" />
+          <Text style={styles.placeholderText}>Tap untuk ambil selfie</Text>
+        </View>
+        {content}
+      </Pressable>
+    );
+  }
+
+  return (
+    <ImageBackground
+      source={{ uri: `file://${photoPath}` }}
+      style={styles.heroPhoto}
+      imageStyle={styles.heroImage}
+    >
+      {content}
+    </ImageBackground>
+  );
 }
 
 /** Read file path → data URI base64 string. Pakai fetch + FileReader (no native dep). */
@@ -195,76 +293,11 @@ export function ClockInConfirmScreen({ navigation, route }: Props): React.JSX.El
           </View>
         ) : preview ? (
           <View style={styles.previewBox}>
-            <View style={styles.selfieCard}>
-              {photoPath ? (
-                <Image source={{ uri: `file://${photoPath}` }} style={styles.selfieThumb} />
-              ) : (
-                <View style={styles.selfiePlaceholder}>
-                  <CameraIcon size={24} color={tokens.semantic.fg3} />
-                </View>
-              )}
-              <View style={styles.selfieMeta}>
-                <Text style={styles.selfieLabel}>
-                  {photoPath ? 'Foto selfie siap' : 'Tanpa foto selfie'}
-                </Text>
-                <Text style={styles.selfieHint}>
-                  {photoPath
-                    ? 'Foto akan dilampirkan ke catatan presensi.'
-                    : 'Foto opsional untuk verifikasi.'}
-                </Text>
-              </View>
-              <Button
-                variant="ghost"
-                size="sm"
-                onPress={() => navigation.replace('ClockInCamera', { logType })}
-              >
-                {photoPath ? 'Ganti' : 'Ambil'}
-              </Button>
-            </View>
-
-            <View style={styles.coordCard}>
-              <View style={styles.coordRow}>
-                <Navigation size={16} color={tokens.semantic.brand} />
-                <Text style={styles.coordLabel}>Koordinat GPS</Text>
-              </View>
-              <Text style={styles.coordValue}>
-                {preview.coordinate.latitude.toFixed(6)}, {preview.coordinate.longitude.toFixed(6)}
-              </Text>
-              <Text style={styles.coordMeta}>
-                Akurasi ±{Math.round(preview.coordinate.accuracyMeters)} m
-              </Text>
-            </View>
-
-            {preview.nearest ? (
-              <View
-                style={[
-                  styles.locationCard,
-                  preview.nearest.inside ? styles.locationInside : styles.locationOutside,
-                ]}
-              >
-                <View style={styles.locationDetailRow}>
-                  <MapPin size={16} color={preview.nearest.inside ? tokens.color.green700 : tokens.color.error} />
-                  <Text style={styles.locationName}>
-                    {preview.nearest.locationName ?? preview.nearest.name}
-                  </Text>
-                </View>
-                <Text style={styles.locationDistance}>
-                  {preview.nearest.inside
-                    ? 'Anda di dalam radius geofence.'
-                    : `Anda ${formatDistance(preview.nearest.distanceM)} dari titik referensi.`}
-                </Text>
-              </View>
-            ) : (
-              <View style={[styles.locationCard, styles.locationNone]}>
-                <View style={styles.locationDetailRow}>
-                  <AlertCircle size={16} color={tokens.color.yellow700} />
-                  <Text style={[styles.locationName, { color: tokens.color.yellow700 }]}>
-                    Tidak ada lokasi shift hari ini
-                  </Text>
-                </View>
-                <Text style={styles.locationDistance}>Presensi tetap bisa dikirim.</Text>
-              </View>
-            )}
+            <PhotoHero
+              photoPath={photoPath}
+              preview={preview}
+              onReplace={() => navigation.replace('ClockInCamera', { logType })}
+            />
 
             {showReasonField ? (
               <View style={styles.reasonBox}>
@@ -343,68 +376,100 @@ const styles = StyleSheet.create({
   },
   errorText: { fontSize: tokens.fontSize.body, color: tokens.color.error },
   previewBox: { gap: tokens.spacing.sp3, flex: 1 },
-  selfieCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: tokens.spacing.sp3,
-    padding: tokens.spacing.sp3,
-    backgroundColor: tokens.semantic.surface,
-    borderRadius: tokens.radius.md,
-    borderWidth: 1,
-    borderColor: tokens.semantic.line,
-  },
-  selfieThumb: {
-    width: 56,
-    height: 56,
-    borderRadius: tokens.radius.sm,
-  },
-  selfiePlaceholder: {
-    width: 56,
-    height: 56,
-    borderRadius: tokens.radius.sm,
+  heroPhoto: {
+    width: '100%',
+    aspectRatio: 3 / 4,
+    borderRadius: tokens.radius.lg,
+    overflow: 'hidden',
     backgroundColor: tokens.semantic.surface2,
+  },
+  heroImage: {
+    borderRadius: tokens.radius.lg,
+    resizeMode: 'cover',
+  },
+  heroPlaceholder: {
+    width: '100%',
+    aspectRatio: 3 / 4,
+    borderRadius: tokens.radius.lg,
+    overflow: 'hidden',
+    backgroundColor: '#1F2937',
+  },
+  placeholderCenter: {
+    ...StyleSheet.absoluteFillObject,
     alignItems: 'center',
     justifyContent: 'center',
+    gap: tokens.spacing.sp2,
   },
-  selfieMeta: { flex: 1, gap: 2 },
-  selfieLabel: { fontSize: tokens.fontSize.body, color: tokens.semantic.fg1, fontWeight: '600' },
-  selfieHint: { fontSize: tokens.fontSize.caption, color: tokens.semantic.fg3 },
-  coordCard: {
-    padding: tokens.spacing.sp3,
-    backgroundColor: tokens.semantic.surface,
-    borderRadius: tokens.radius.md,
-    borderWidth: 1,
-    borderColor: tokens.semantic.line,
-    gap: tokens.spacing.sp1_5,
-  },
-  coordRow: { flexDirection: 'row', alignItems: 'center', gap: tokens.spacing.sp1 },
-  coordLabel: { fontSize: tokens.fontSize.small, fontWeight: '600', color: tokens.semantic.fg2 },
-  coordValue: {
+  placeholderText: {
+    color: '#FFFFFF',
     fontSize: tokens.fontSize.body,
-    fontFamily: tokens.font.mono,
-    color: tokens.semantic.fg1,
+    fontWeight: '600',
   },
-  coordMeta: { fontSize: tokens.fontSize.caption, color: tokens.semantic.fg3 },
-  locationCard: {
-    padding: tokens.spacing.sp3,
-    borderRadius: tokens.radius.md,
-    borderWidth: 1,
+  replaceBtn: {
+    position: 'absolute',
+    top: tokens.spacing.sp2,
+    right: tokens.spacing.sp2,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: tokens.spacing.sp1,
+    paddingHorizontal: tokens.spacing.sp2,
+    paddingVertical: tokens.spacing.sp1,
+    borderRadius: tokens.radius.full,
+    backgroundColor: 'rgba(0,0,0,0.55)',
+  },
+  replaceBtnText: {
+    color: '#FFFFFF',
+    fontSize: tokens.fontSize.small,
+    fontWeight: '700',
+    letterSpacing: 0.3,
+  },
+  overlay: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    paddingHorizontal: tokens.spacing.sp3,
+    paddingVertical: tokens.spacing.sp3,
+    backgroundColor: 'rgba(0,0,0,0.62)',
+    gap: tokens.spacing.sp1,
+  },
+  overlayTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: tokens.spacing.sp1_5,
   },
-  locationInside: {
-    backgroundColor: tokens.color.green50,
-    borderColor: tokens.color.green200,
+  overlayStatus: {
+    fontSize: tokens.fontSize.small,
+    fontWeight: '800',
+    letterSpacing: 1,
+    textTransform: 'uppercase',
+    flex: 1,
   },
-  locationOutside: {
-    backgroundColor: tokens.color.errorTint,
-    borderColor: tokens.color.error,
+  overlayLocationRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: tokens.spacing.sp1_5,
   },
-  locationNone: {
-    backgroundColor: tokens.color.yellow50,
-    borderColor: tokens.color.yellow200,
+  overlayLocationName: {
+    color: '#FFFFFF',
+    fontSize: tokens.fontSize.h3,
+    fontWeight: '700',
+    flex: 1,
+  },
+  overlayDivider: {
+    height: 1,
+    backgroundColor: 'rgba(255,255,255,0.18)',
+    marginVertical: tokens.spacing.sp1,
+  },
+  overlayCoord: {
+    color: '#FFFFFF',
+    fontSize: tokens.fontSize.small,
+    fontFamily: tokens.font.mono,
+    letterSpacing: 0.5,
+  },
+  overlayCoordMeta: {
+    color: 'rgba(255,255,255,0.7)',
+    fontSize: tokens.fontSize.caption,
   },
   reasonBox: { marginTop: tokens.spacing.sp1 },
-  locationDetailRow: { flexDirection: 'row', alignItems: 'center', gap: tokens.spacing.sp2 },
-  locationName: { fontSize: tokens.fontSize.body, color: tokens.semantic.fg1, fontWeight: '700' },
-  locationDistance: { fontSize: tokens.fontSize.small, color: tokens.semantic.fg2 },
 });

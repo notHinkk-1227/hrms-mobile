@@ -27,6 +27,9 @@ export const StorageKeys = {
   THEME: 'ui.theme',
   BACKEND_FEATURES: 'features.backend',
   INBOX_READ: 'inbox.read',
+  FCM_TOKEN: 'push.fcm_token',
+  FCM_REGISTERED_AT: 'push.fcm_registered_at',
+  FCM_REGISTERED_SITE: 'push.fcm_registered_site',
 } as const;
 
 export type StorageKey = (typeof StorageKeys)[keyof typeof StorageKeys];
