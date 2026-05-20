@@ -1,11 +1,10 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import { Check, ChevronDown, FolderKanban } from 'lucide-react-native';
+import { AlertTriangle, Check, ChevronDown, FolderKanban, Lock } from 'lucide-react-native';
 import { BottomSheet } from '@shared/components/BottomSheet';
 import { EmptyState } from '@shared/components/EmptyState';
 import { Screen } from '@shared/components/Screen';
-import { SkeletonList } from '@shared/components/Skeleton';
 import { StatusBadge } from '@shared/components/StatusBadge';
 import { FormHeader } from '@features/forms/FormHeader';
 import { tokens } from '@shared/theme/tokens';
@@ -69,7 +68,9 @@ export function TaskListScreen(): React.JSX.Element {
   const [rows, setRows] = useState<TaskItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<{ kind: 'permission' | 'generic'; message: string } | null>(
+    null,
+  );
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('open');
   const [priorityFilter, setPriorityFilter] = useState<PriorityFilter>('all');
   const [projectFilter, setProjectFilter] = useState<string>('all');
@@ -78,12 +79,41 @@ export function TaskListScreen(): React.JSX.Element {
 
   const load = useCallback(async () => {
     if (!userId) return;
+
     setError(null);
+
     try {
-      const data = await taskApi.listAssignedToMe(userId, statusFilter === 'open', 100);
+      const data = await taskApi.listAssignedToMe(
+        userId,
+        statusFilter === 'open',
+        100
+      );
+
       setRows(data);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Gagal memuat task');
+      const rawMessage =
+        e instanceof Error
+          ? e.message
+          : 'Gagal memuat task';
+
+      const m = rawMessage.toLowerCase();
+      const isPermission =
+        m.includes('permission') ||
+        m.includes('not permitted') ||
+        m.includes('not allowed') ||
+        m.includes('access denied') ||
+        m.includes('403') ||
+        m.includes('insufficient permission');
+
+      if (isPermission) {
+        setError({
+          kind: 'permission',
+          message:
+            'Akun Anda belum memiliki akses ke fitur Task. Hubungi admin untuk meminta akses.',
+        });
+      } else {
+        setError({ kind: 'generic', message: rawMessage });
+      }
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -228,13 +258,34 @@ export function TaskListScreen(): React.JSX.Element {
       </BottomSheet>
 
       {loading ? (
-        <View style={styles.skeletonWrap}>
-          <SkeletonList count={5} />
-        </View>
+        <EmptyState
+          icon={<ActivityIndicator size="large" color={tokens.semantic.brand} />}
+          title="Memuat task…"
+          subtitle="Sebentar ya, kami sedang menarik daftar task Anda dari server."
+        />
       ) : error ? (
-        <View style={styles.center}>
-          <Text style={styles.errorText}>{error}</Text>
-        </View>
+        error.kind === 'permission' ? (
+          <EmptyState
+            tone="error"
+            icon={<Lock size={32} color={tokens.color.error} />}
+            title="Akses ditolak"
+            subtitle={error.message}
+          />
+        ) : (
+          <EmptyState
+            tone="error"
+            icon={<AlertTriangle size={32} color={tokens.color.error} />}
+            title="Gagal memuat task"
+            subtitle={error.message}
+            cta={{
+              label: 'Coba lagi',
+              onPress: () => {
+                setLoading(true);
+                load();
+              },
+            }}
+          />
+        )
       ) : (
         <FlatList
           data={filtered}
@@ -390,9 +441,6 @@ const styles = StyleSheet.create({
     marginLeft: 'auto',
   },
   list: { paddingBottom: tokens.spacing.sp5, gap: tokens.spacing.sp2 },
-  skeletonWrap: { paddingVertical: tokens.spacing.sp2 },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: tokens.spacing.sp4 },
-  errorText: { fontSize: tokens.fontSize.small, color: tokens.color.error, textAlign: 'center' },
   row: {
     flexDirection: 'row',
     alignItems: 'center',

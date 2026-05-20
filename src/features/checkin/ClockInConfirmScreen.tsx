@@ -1,8 +1,11 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, ImageBackground, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import ViewShot, { captureRef, type ViewShotRef } from 'react-native-view-shot';
 import { AlertCircle, Camera as CameraIcon, CheckCircle2, MapPin, RefreshCw } from 'lucide-react-native';
 import { Button } from '@shared/components/Button';
+import { NoticeCard } from '@shared/components/NoticeCard';
+import { OSMStaticImage } from '@shared/components/OSMStaticImage';
 import { Screen } from '@shared/components/Screen';
 import { StickyCta } from '@shared/components/StickyCta';
 import { TextField } from '@shared/components/TextField';
@@ -28,6 +31,42 @@ const useCase = new ClockInUseCase({
 function formatDistance(meters: number): string {
   if (meters < 1000) return `${Math.round(meters)} m`;
   return `${(meters / 1000).toFixed(2)} km`;
+}
+
+/**
+ * Ubah error mentah dari GPS/network jadi pesan singkat berbahasa Indonesia
+ * yang mudah dipahami pengguna. Heuristik berdasarkan kata kunci di message.
+ */
+function humanizePreviewError(raw: string): { title: string; body: string } {
+  const m = raw.toLowerCase();
+  if (m.includes('permission') || m.includes('denied') || m.includes('izin')) {
+    return {
+      title: 'Izin lokasi belum aktif',
+      body: 'Aktifkan izin lokasi untuk aplikasi di pengaturan, lalu coba lagi.',
+    };
+  }
+  if (m.includes('location services') || m.includes('disabled') || m.includes('gps')) {
+    return {
+      title: 'GPS belum menyala',
+      body: 'Nyalakan layanan lokasi (GPS) di perangkat Anda lalu coba lagi.',
+    };
+  }
+  if (m.includes('timeout') || m.includes('timed out')) {
+    return {
+      title: 'Sinyal GPS lemah',
+      body: 'Pindah ke tempat terbuka atau dekat jendela, lalu coba ambil lokasi lagi.',
+    };
+  }
+  if (m.includes('network') || m.includes('connection') || m.includes('koneksi')) {
+    return {
+      title: 'Tidak ada koneksi',
+      body: 'Periksa koneksi internet Anda, lalu coba lagi.',
+    };
+  }
+  return {
+    title: 'Gagal mengambil lokasi',
+    body: raw,
+  };
 }
 
 interface PhotoHeroProps {
@@ -65,42 +104,41 @@ function PhotoHero({ photoPath, preview, onReplace }: PhotoHeroProps): React.JSX
 
   const content = (
     <>
-      {/* Top-right action button */}
-      <Pressable
-        onPress={onReplace}
-        style={styles.replaceBtn}
-        hitSlop={8}
-        accessibilityLabel={photoPath ? 'Ganti foto selfie' : 'Ambil foto selfie'}
-      >
-        <RefreshCw size={14} color="#FFFFFF" />
-        <Text style={styles.replaceBtnText}>{photoPath ? 'Ganti' : 'Ambil'}</Text>
-      </Pressable>
-
-      {/* Overlay info bawah */}
+      {/* Overlay info bawah: info text di kiri + map thumb di kanan */}
       <View style={styles.overlay}>
-        <View style={styles.overlayTopRow}>
-          {inside ? (
-            <CheckCircle2 size={18} color={tokens.color.green300} />
-          ) : outside ? (
-            <AlertCircle size={18} color="#FFB4B4" />
-          ) : (
-            <AlertCircle size={18} color="#FFE08A" />
-          )}
-          <Text style={[styles.overlayStatus, { color: statusColor }]} numberOfLines={1}>
-            {statusLabel}
+        <View style={styles.overlayInfo}>
+          <View style={styles.overlayTopRow}>
+            {inside ? (
+              <CheckCircle2 size={18} color={tokens.color.green300} />
+            ) : outside ? (
+              <AlertCircle size={18} color="#FFB4B4" />
+            ) : (
+              <AlertCircle size={18} color="#FFE08A" />
+            )}
+            <Text style={[styles.overlayStatus, { color: statusColor }]} numberOfLines={1}>
+              {statusLabel}
+            </Text>
+          </View>
+          <View style={styles.overlayLocationRow}>
+            <MapPin size={16} color="#FFFFFF" />
+            <Text style={styles.overlayLocationName} numberOfLines={2}>
+              {locationName}
+            </Text>
+          </View>
+          <View style={styles.overlayDivider} />
+          <Text style={styles.overlayCoord}>
+            {lat}, {lon}
           </Text>
+          <Text style={styles.overlayCoordMeta}>Akurasi ±{accuracy} m</Text>
         </View>
-        <View style={styles.overlayLocationRow}>
-          <MapPin size={16} color="#FFFFFF" />
-          <Text style={styles.overlayLocationName} numberOfLines={1}>
-            {locationName}
-          </Text>
+        <View style={styles.overlayMap}>
+          <OSMStaticImage
+            latitude={preview.coordinate.latitude}
+            longitude={preview.coordinate.longitude}
+            size={84}
+            zoom={16}
+          />
         </View>
-        <View style={styles.overlayDivider} />
-        <Text style={styles.overlayCoord}>
-          {lat}, {lon}
-        </Text>
-        <Text style={styles.overlayCoordMeta}>Akurasi ±{accuracy} m</Text>
       </View>
     </>
   );
@@ -149,6 +187,7 @@ export function ClockInConfirmScreen({ navigation, route }: Props): React.JSX.El
   const { logType, photoPath } = route.params;
   const employee = useAuthStore((s) => s.employee);
   const toast = useToast();
+  const shotRef = useRef<ViewShotRef>(null);
 
   const [preview, setPreview] = useState<ClockInPreview | null>(null);
   const [loading, setLoading] = useState(true);
@@ -194,15 +233,42 @@ export function ClockInConfirmScreen({ navigation, route }: Props): React.JSX.El
       // Enhanced mode (sopwer_hrms) — backend wajib selfie_base64 di payload
       // clock_in, lalu save file sendiri via decode_selfie + db.set_value.
       // Standard mode — submit dulu, upload selfie multipart setelah doc dibuat.
+      //
+      // Foto yang dikirim = COMPOSITE (selfie + overlay info + map thumbnail)
+      // di-capture dari preview ViewShot, bukan raw selfie. Kalau capture gagal,
+      // fallback ke raw selfie supaya presensi tetap bisa terkirim.
       let selfieBase64: string | undefined;
       if (photoPath && features.hasSopwerHrms) {
         try {
-          selfieBase64 = await fileToBase64(photoPath);
-        } catch (e) {
-          const msg = e instanceof Error ? e.message : 'Foto selfie tidak terbaca';
-          toast.show({ variant: 'error', title: 'Foto selfie tidak terbaca', message: msg });
-          setSubmitting(false);
-          return;
+          // Beri waktu tile map loaded sebelum capture (Carto CDN ~500ms)
+          await new Promise<void>((r) => {
+            setTimeout(r, 700);
+          });
+          selfieBase64 = await captureRef(shotRef, {
+            format: 'jpg',
+            quality: 0.9,
+            result: 'data-uri',
+          });
+        } catch (captureErr) {
+          try {
+            selfieBase64 = await fileToBase64(photoPath);
+            toast.show({
+              variant: 'warning',
+              title: 'Stempel info tidak dibuat',
+              message: 'Foto tetap dikirim tanpa overlay lokasi.',
+            });
+          } catch (e) {
+            const msg =
+              e instanceof Error ? e.message : 'File foto selfie tidak dapat dibaca.';
+            toast.show({
+              variant: 'error',
+              title: 'Foto selfie bermasalah',
+              message: `${msg} Coba ambil ulang foto.`,
+              durationMs: 5000,
+            });
+            setSubmitting(false);
+            return;
+          }
         }
       }
 
@@ -220,12 +286,29 @@ export function ClockInConfirmScreen({ navigation, route }: Props): React.JSX.El
       );
 
       if (outcome.kind === 'success') {
-        // Standard mode — backend tidak handle selfie, upload manual.
+        // Standard mode — backend tidak handle selfie, upload composite manual.
         if (photoPath && outcome.result.name && !features.hasSopwerHrms) {
-          const uri = photoPath.startsWith('file://') ? photoPath : `file://${photoPath}`;
+          let uploadUri: string;
+          try {
+            await new Promise<void>((r) => {
+            setTimeout(r, 700);
+          });
+            uploadUri = await captureRef(shotRef, {
+              format: 'jpg',
+              quality: 0.9,
+              result: 'tmpfile',
+            });
+          } catch {
+            uploadUri = photoPath.startsWith('file://') ? photoPath : `file://${photoPath}`;
+            toast.show({
+              variant: 'warning',
+              title: 'Stempel info tidak dibuat',
+              message: 'Foto tetap diunggah tanpa overlay lokasi.',
+            });
+          }
           try {
             await uploadFile({
-              uri,
+              uri: uploadUri,
               name: `selfie-${outcome.result.name}.jpg`,
               type: 'image/jpeg',
               attachToDoctype: 'Employee Checkin',
@@ -233,28 +316,39 @@ export function ClockInConfirmScreen({ navigation, route }: Props): React.JSX.El
               isPrivate: true,
             });
           } catch (uploadErr) {
-            const msg = uploadErr instanceof Error ? uploadErr.message : 'Upload foto gagal';
+            const msg =
+              uploadErr instanceof Error ? uploadErr.message : 'Upload foto gagal.';
             toast.show({
               variant: 'warning',
-              title: 'Foto selfie tidak tersimpan',
-              message: msg,
+              title: 'Foto belum tersimpan',
+              message: `Presensi berhasil, namun foto gagal terunggah: ${msg}`,
+              durationMs: 5000,
             });
           }
         }
         navigation.replace('ClockInSuccess', { result: outcome.result, logType });
       } else if (outcome.kind === 'out_of_geofence') {
+        const distance = formatDistance(outcome.nearest?.distanceM ?? 0);
+        const place = outcome.nearest?.name ?? 'lokasi kantor';
         Alert.alert(
-          'Di luar area kantor',
-          `Anda berada ${formatDistance(outcome.nearest?.distanceM ?? 0)} dari ${
-            outcome.nearest?.name ?? 'lokasi kantor'
-          }. Tetap kirim presensi?`,
+          'Anda di luar radius',
+          `Posisi Anda ${distance} dari ${place}. Tetap kirim presensi?`,
           [
             { text: 'Batal', style: 'cancel' },
-            { text: 'Tetap Kirim', onPress: () => doSubmit(true) },
+            { text: 'Tetap Kirim', style: 'destructive', onPress: () => doSubmit(true) },
           ],
         );
       } else {
-        Alert.alert('Gagal presensi', outcome.kind === 'error' ? outcome.message : 'Coba lagi');
+        const msg =
+          outcome.kind === 'error' && outcome.message
+            ? outcome.message
+            : 'Coba lagi beberapa saat lagi.';
+        toast.show({
+          variant: 'error',
+          title: 'Presensi gagal dikirim',
+          message: msg,
+          durationMs: 5000,
+        });
       }
     } finally {
       setSubmitting(false);
@@ -284,20 +378,42 @@ export function ClockInConfirmScreen({ navigation, route }: Props): React.JSX.El
             <Text style={styles.loadingText}>Mengambil lokasi GPS…</Text>
           </View>
         ) : error ? (
-          <View style={styles.errorBox}>
-            <AlertCircle size={20} color={tokens.color.error} />
-            <Text style={styles.errorText}>{error}</Text>
+          <View style={styles.errorWrap}>
+            {(() => {
+              const e = humanizePreviewError(error);
+              return <NoticeCard variant="error" title={e.title} body={e.body} />;
+            })()}
             <Button onPress={loadPreview} variant="outline" size="md">
               Coba Lagi
             </Button>
           </View>
         ) : preview ? (
           <View style={styles.previewBox}>
-            <PhotoHero
-              photoPath={photoPath}
-              preview={preview}
-              onReplace={() => navigation.replace('ClockInCamera', { logType })}
-            />
+            <View style={styles.heroWrap}>
+              <ViewShot
+                ref={shotRef}
+                options={{ format: 'jpg', quality: 0.9 }}
+                style={styles.shotWrap}
+              >
+                <PhotoHero
+                  photoPath={photoPath}
+                  preview={preview}
+                  onReplace={() => navigation.replace('ClockInCamera', { logType })}
+                />
+              </ViewShot>
+              {/* Tombol Ganti di luar ViewShot supaya tidak ikut ter-capture */}
+              {photoPath ? (
+                <Pressable
+                  onPress={() => navigation.replace('ClockInCamera', { logType })}
+                  style={styles.replaceBtn}
+                  hitSlop={8}
+                  accessibilityLabel="Ganti foto selfie"
+                >
+                  <RefreshCw size={14} color="#FFFFFF" />
+                  <Text style={styles.replaceBtnText}>Ganti</Text>
+                </Pressable>
+              ) : null}
+            </View>
 
             {showReasonField ? (
               <View style={styles.reasonBox}>
@@ -367,15 +483,19 @@ const styles = StyleSheet.create({
     gap: tokens.spacing.sp3,
   },
   loadingText: { fontSize: tokens.fontSize.body, color: tokens.semantic.fg3 },
-  errorBox: {
-    padding: tokens.spacing.sp3,
-    backgroundColor: tokens.color.errorTint,
-    borderRadius: tokens.radius.md,
-    gap: tokens.spacing.sp2,
-    alignItems: 'flex-start',
+  errorWrap: {
+    gap: tokens.spacing.sp3,
+    alignItems: 'stretch',
   },
-  errorText: { fontSize: tokens.fontSize.body, color: tokens.color.error },
   previewBox: { gap: tokens.spacing.sp3, flex: 1 },
+  heroWrap: {
+    position: 'relative',
+  },
+  shotWrap: {
+    borderRadius: tokens.radius.lg,
+    overflow: 'hidden',
+    backgroundColor: tokens.semantic.surface2,
+  },
   heroPhoto: {
     width: '100%',
     aspectRatio: 3 / 4,
@@ -431,7 +551,20 @@ const styles = StyleSheet.create({
     paddingHorizontal: tokens.spacing.sp3,
     paddingVertical: tokens.spacing.sp3,
     backgroundColor: 'rgba(0,0,0,0.62)',
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: tokens.spacing.sp3,
+  },
+  overlayInfo: {
+    flex: 1,
     gap: tokens.spacing.sp1,
+    minWidth: 0,
+  },
+  overlayMap: {
+    borderRadius: tokens.radius.md,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.5)',
+    overflow: 'hidden',
   },
   overlayTopRow: {
     flexDirection: 'row',

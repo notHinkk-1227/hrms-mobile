@@ -38,6 +38,15 @@ export interface CheckinAttachment {
   file_name: string;
   file_url: string;
   is_image: 0 | 1;
+  is_private: 0 | 1;
+}
+
+const IMAGE_EXT = /\.(jpe?g|png|gif|webp|bmp|heic|heif)$/i;
+
+function isImageFile(name: string | null | undefined, url: string | null | undefined): 0 | 1 {
+  if (name && IMAGE_EXT.test(name)) return 1;
+  if (url && IMAGE_EXT.test(url.split('?')[0] ?? '')) return 1;
+  return 0;
 }
 
 export async function listCheckinHistory(
@@ -95,21 +104,42 @@ export async function getCheckin(name: string): Promise<FrappeEmployeeCheckin | 
   }
 }
 
+interface RawDocinfoAttachment {
+  name?: string;
+  file_name?: string | null;
+  file_url?: string | null;
+  is_private?: 0 | 1 | boolean;
+  is_image?: 0 | 1 | boolean;
+}
+
 export async function listCheckinAttachments(name: string): Promise<CheckinAttachment[]> {
   try {
     const client = createTenantClient();
-    const response = await client.get('/api/resource/File', {
+    // Pakai get_docinfo — endpoint resmi Frappe Desk untuk fetch attachments.
+    // Permission dicek lewat parent doc (Employee Checkin), bukan File doctype,
+    // jadi private files (is_private=1) ikut keluar selama user bisa baca docnya.
+    // /api/resource/File langsung sering kosong karena role Employee tidak punya
+    // read perm di File doctype.
+    const response = await client.get('/api/method/frappe.desk.form.load.get_docinfo', {
       params: {
-        filters: JSON.stringify([
-          ['attached_to_doctype', '=', 'Employee Checkin'],
-          ['attached_to_name', '=', name],
-        ]),
-        fields: JSON.stringify(['name', 'file_name', 'file_url', 'is_image']),
-        order_by: 'creation desc',
-        limit_page_length: 10,
+        doctype: 'Employee Checkin',
+        name,
       },
     });
-    return response.data?.data ?? [];
+    const raw: RawDocinfoAttachment[] =
+      response.data?.message?.docinfo?.attachments ?? response.data?.docinfo?.attachments ?? [];
+    return raw
+      .filter((a): a is RawDocinfoAttachment & { name: string; file_url: string } =>
+        Boolean(a?.name && a?.file_url),
+      )
+      .map((a) => ({
+        name: a.name,
+        file_name: a.file_name ?? a.file_url.split('/').pop() ?? a.name,
+        file_url: a.file_url,
+        is_image:
+          a.is_image === 1 || a.is_image === true ? 1 : isImageFile(a.file_name, a.file_url),
+        is_private: a.is_private === 1 || a.is_private === true ? 1 : 0,
+      }));
   } catch (e) {
     throw toApiError(e);
   }

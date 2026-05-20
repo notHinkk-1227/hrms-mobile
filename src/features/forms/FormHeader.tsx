@@ -31,7 +31,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: tokens.spacing.sp2,
-    marginBottom: tokens.spacing.sp4,
+    marginBottom: tokens.spacing.sp1,
   },
   backBtn: {
     width: tokens.touchTarget.comfortable,

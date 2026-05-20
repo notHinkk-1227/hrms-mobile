@@ -153,13 +153,12 @@ const styles = StyleSheet.create({
   padHorizontal: { paddingHorizontal: tokens.spacing.sp4 },
   listContent: {
     paddingHorizontal: tokens.spacing.sp4,
-    paddingTop: tokens.spacing.sp2,
-    paddingBottom: tokens.spacing.sp6,
+    paddingBottom: tokens.spacing.sp4,
   },
   row: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    paddingVertical: tokens.spacing.sp3,
+    paddingVertical: tokens.spacing.sp2,
     gap: tokens.spacing.sp3,
   },
   rowPressed: { opacity: 0.7 },
@@ -187,7 +186,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    marginTop: 2,
   },
   metaText: { fontSize: tokens.fontSize.caption, color: tokens.semantic.fg3 },
   metaDot: { fontSize: tokens.fontSize.caption, color: tokens.semantic.fg3 },

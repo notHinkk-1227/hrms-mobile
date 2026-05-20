@@ -32,16 +32,16 @@ export function StickyCta({ children, style }: StickyCtaProps): React.JSX.Elemen
     };
   }, []);
 
-  const paddingBottom =
-    keyboardOffset > 0
-      ? keyboardOffset + 8
-      : Math.max(insets.bottom, tokens.spacing.sp2);
+  // const paddingBottom =
+  //   keyboardOffset > 0
+  //     ? keyboardOffset + 8
+  //     : Math.max(insets.bottom, tokens.spacing.sp2);
 
   return (
     <View
       style={[
         styles.container,
-        { paddingBottom },
+        // { paddingBottom },
         style,
       ]}
     >
