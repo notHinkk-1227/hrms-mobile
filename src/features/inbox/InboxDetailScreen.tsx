@@ -113,7 +113,7 @@ export function InboxDetailScreen({ navigation, route }: Props): React.JSX.Eleme
   );
 
   return (
-    <Screen padded={false}>
+    <Screen padded={false} bottomInset={false}>
       <View style={styles.headerWrap}>
         <FormHeader title="Detail Pengumuman" onBack={() => navigation.goBack()} />
       </View>

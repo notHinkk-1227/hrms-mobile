@@ -108,7 +108,7 @@ export function InboxListScreen({ navigation }: Props): React.JSX.Element {
   };
 
   return (
-    <Screen padded={false}>
+    <Screen padded={false} bottomInset={false}>
       <View style={styles.headerWrap}>
         <FormHeader title="Inbox" onBack={() => navigation.goBack()} />
       </View>

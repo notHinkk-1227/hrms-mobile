@@ -22,10 +22,7 @@ class MainApplication : Application(), ReactApplication {
 
         override fun getJSMainModuleName(): String = "index"
 
-        // Force-disable Metro in debug build supaya bundle JS dari assets dipakai.
-        // Kalau perlu live reload, set `bundleInDebug=false` + jalankan Metro
-        // + ubah balik return BuildConfig.DEBUG.
-        override fun getUseDeveloperSupport(): Boolean = false
+        override fun getUseDeveloperSupport(): Boolean = BuildConfig.DEBUG
 
         override val isNewArchEnabled: Boolean = BuildConfig.IS_NEW_ARCHITECTURE_ENABLED
         override val isHermesEnabled: Boolean = BuildConfig.IS_HERMES_ENABLED

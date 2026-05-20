@@ -185,7 +185,7 @@ export function NotificationsScreen({ navigation }: Props): React.JSX.Element {
   // Selalu tampil button — server unread count bisa beda dengan local list
   // (loaded items max 50, tapi server bisa punya >50 unread).
   return (
-    <Screen>
+    <Screen bottomInset={false}>
       <FormHeader title="Notifikasi" onBack={() => navigation.goBack()} />
 
       {rows.length > 0 ? (

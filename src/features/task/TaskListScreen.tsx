@@ -130,7 +130,7 @@ export function TaskListScreen(): React.JSX.Element {
     (projectFilter !== 'all' ? 1 : 0);
 
   return (
-    <Screen>
+    <Screen bottomInset={false}>
       <FormHeader
         title="Task Saya"
         onBack={canGoBack ? () => navigation.goBack() : undefined}

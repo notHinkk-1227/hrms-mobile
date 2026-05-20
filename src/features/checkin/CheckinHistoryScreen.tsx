@@ -86,7 +86,7 @@ export function CheckinHistoryScreen({ navigation }: Props): React.JSX.Element {
   ]);
 
   return (
-    <Screen>
+    <Screen bottomInset={false}>
       <FormHeader title="Riwayat Presensi" onBack={() => navigation.goBack()} />
 
       {loading ? (

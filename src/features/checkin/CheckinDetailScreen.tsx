@@ -76,7 +76,7 @@ export function CheckinDetailScreen({ navigation, route }: Props): React.JSX.Ele
   const iconBg = isIn ? tokens.color.green50 : tokens.color.blue50;
 
   return (
-    <Screen>
+    <Screen bottomInset={false}>
       <FormHeader title="Detail Presensi" onBack={() => navigation.goBack()} />
 
       {loading ? (

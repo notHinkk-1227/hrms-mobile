@@ -522,7 +522,7 @@ export function HomeScreen({ navigation }: Props): React.JSX.Element {
 }
 
 const styles = StyleSheet.create({
-  scroll: { gap: tokens.spacing.sp4, paddingBottom: tokens.spacing.sp7 },
+  scroll: { gap: tokens.spacing.sp4, paddingBottom: tokens.spacing.sp2 },
   greeting: {
     flexDirection: 'row',
     alignItems: 'center',

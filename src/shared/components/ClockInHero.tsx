@@ -198,9 +198,11 @@ export function ClockInHero({
 const styles = StyleSheet.create({
   card: {
     padding: tokens.spacing.sp4,
+    paddingBottom: tokens.spacing.sp5,
     borderRadius: tokens.radius.lg,
     gap: tokens.spacing.sp3,
-    ...tokens.shadow.sm,
+    overflow: 'hidden',
+    // ...tokens.shadow.sm,
   },
   header: { gap: tokens.spacing.sp2, borderRadius: tokens.radius.md },
   headerPressed: { opacity: 0.85 },
@@ -228,7 +230,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: tokens.spacing.sp2,
-    flexWrap: 'wrap',
+    // flexWrap: 'wrap',
   },
   time: {
     fontFamily: tokens.font.mono,
@@ -238,8 +240,8 @@ const styles = StyleSheet.create({
     lineHeight: tokens.lineHeight.timeHero,
     letterSpacing: -1,
   },
-  locationRow: { flexDirection: 'row', alignItems: 'center', gap: tokens.spacing.sp1_5 },
-  locationText: { fontSize: 12, color: 'rgba(255,255,255,0.85)' },
+  locationRow: { flexDirection: 'row', alignItems: 'center', gap: tokens.spacing.sp1_5, flex: 1 },
+  locationText: { fontSize: 12, color: 'rgba(255,255,255,0.85)', flexShrink: 1 },
   gpsPill: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -272,7 +274,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   cta: {
-    marginTop: tokens.spacing.sp2,
+    // marginTop: tokens.spacing.sp2,
     minHeight: 48,
     borderRadius: tokens.radius.md,
     alignItems: 'center',

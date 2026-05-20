@@ -28,5 +28,5 @@ export function Screen({
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: tokens.semantic.bg },
   container: { flex: 1, backgroundColor: tokens.semantic.bg },
-  padded: { paddingHorizontal: tokens.spacing.sp4, paddingVertical: tokens.spacing.sp4 },
+  padded: { paddingHorizontal: tokens.spacing.sp4, paddingTop: tokens.spacing.sp4 },
 });
