@@ -22,6 +22,7 @@ export function RootNavigator(): React.JSX.Element {
 
   const [biometricChecked, setBiometricChecked] = useState(false);
   const [biometricUnlocked, setBiometricUnlocked] = useState(false);
+  const [splashPlayed, setSplashPlayed] = useState(false);
 
   const hydrateFeatures = useFeaturesStore((s) => s.hydrate);
   const refreshFeatures = useFeaturesStore((s) => s.refresh);
@@ -132,8 +133,8 @@ export function RootNavigator(): React.JSX.Element {
     if (isAuthenticated && !biometricUnlocked) setBiometricUnlocked(true);
   }, [isAuthenticated, biometricUnlocked]);
 
-  if (!hydrated || !biometricChecked) {
-    return <SplashView />;
+  if (!hydrated || !biometricChecked || !splashPlayed) {
+    return <SplashView onFinish={() => setSplashPlayed(true)} />;
   }
 
   const showMain = isAuthenticated && privacyAccepted;
