@@ -303,12 +303,15 @@ export function ClockInConfirmScreen({ navigation, route }: Props): React.JSX.El
           });
         } catch (captureErr) {
           console.warn('[ClockIn] captureRef enhanced failed:', captureErr);
+          const errMsg =
+            captureErr instanceof Error ? captureErr.message : String(captureErr);
           try {
             selfieBase64 = await fileToBase64(photoPath);
             toast.show({
               variant: 'warning',
               title: 'Stempel info tidak dibuat',
-              message: 'Foto tetap dikirim tanpa overlay lokasi.',
+              message: `Foto tetap dikirim tanpa overlay lokasi. (Error: ${errMsg})`,
+              durationMs: 8000,
             });
           } catch (e) {
             const msg =
@@ -367,11 +370,14 @@ export function ClockInConfirmScreen({ navigation, route }: Props): React.JSX.El
             });
           } catch (captureErr) {
             console.warn('[ClockIn] captureRef vanilla failed:', captureErr);
+            const errMsg =
+              captureErr instanceof Error ? captureErr.message : String(captureErr);
             uploadUri = photoPath.startsWith('file://') ? photoPath : `file://${photoPath}`;
             toast.show({
               variant: 'warning',
               title: 'Stempel info tidak dibuat',
-              message: 'Foto tetap diunggah tanpa overlay lokasi.',
+              message: `Foto diunggah tanpa overlay lokasi. (Error: ${errMsg})`,
+              durationMs: 8000,
             });
           }
           try {

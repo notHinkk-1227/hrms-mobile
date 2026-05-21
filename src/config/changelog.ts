@@ -11,6 +11,16 @@ export interface ChangelogEntry {
  */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '1.4.3',
+    date: '2026-05-21',
+    items: [
+      'Layar Masuk: logo "Hadir by Sopwer" pindah ke atas, nama perusahaan di bawah logo',
+      'URL backend disembunyikan — sekarang muncul kecil di bawah tombol Masuk, dengan hanya 5 karakter awal yang terbaca (sisanya disamarkan)',
+      'Tombol "Ganti Kode Tenant" pindah ke samping URL (icon kecil)',
+      'Pesan "Stempel info tidak dibuat" sekarang menampilkan detail error untuk bantu diagnosa kalau composite foto gagal di-capture',
+    ],
+  },
+  {
     version: '1.4.2',
     date: '2026-05-21',
     items: [

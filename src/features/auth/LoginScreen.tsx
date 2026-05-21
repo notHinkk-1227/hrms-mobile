@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Alert, Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { Building2, Fingerprint, Globe, Repeat } from 'lucide-react-native';
+import { Fingerprint, Globe, Repeat } from 'lucide-react-native';
 import { AuthFooter } from '@shared/components/AuthFooter';
 import { Button } from '@shared/components/Button';
 import { Screen } from '@shared/components/Screen';
@@ -28,6 +28,22 @@ interface BiometricSession {
 type Props = NativeStackScreenProps<AuthStackParamList, 'Login'>;
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+/**
+ * Tampilkan host dengan 5 karakter awal jelas, sisanya di-mask dengan bullet.
+ * Tujuan: user tetap bisa kenali tenant-nya (5 char prefix biasanya cukup)
+ * tanpa expose full URL backend di layar login. Contoh: hrmsori.sopwer.my.id
+ * → "hrmso••••••••••••••".
+ */
+function maskHost(url: string | null | undefined): string {
+  if (!url) return '';
+  const host = getHost(url);
+  if (!host) return '';
+  if (host.length <= 5) return host;
+  const prefix = host.slice(0, 5);
+  const masked = '•'.repeat(host.length - 5);
+  return `${prefix}${masked}`;
+}
 
 export function LoginScreen({ navigation }: Props): React.JSX.Element {
   const [email, setEmail] = useState('');
@@ -199,43 +215,21 @@ export function LoginScreen({ navigation }: Props): React.JSX.Element {
 
   return (
     <Screen>
-      <View style={styles.header}>
-        <Text style={styles.eyebrow} onPress={onDebugTap} suppressHighlighting>
-          LANGKAH 2 DARI 2
-        </Text>
-        <Text style={styles.title}>Masuk</Text>
+      <View style={styles.brandHeader}>
+        <Pressable onPress={onDebugTap}>
+          <Image
+            source={require('@shared/assets/brand/logo-full.png')}
+            style={styles.logo}
+            resizeMode="contain"
+            accessibilityLabel="Hadir by Sopwer"
+          />
+        </Pressable>
+        {tenantName ? (
+          <Text style={styles.tenantName} numberOfLines={1}>
+            {tenantName}
+          </Text>
+        ) : null}
       </View>
-
-      {tenantName ? (
-        <View style={styles.tenantCard}>
-          <View style={styles.tenantHeader}>
-            <View style={styles.tenantRow}>
-              <Building2 size={18} color={tokens.semantic.brand} />
-              <Text style={styles.tenantName} numberOfLines={1}>
-                {tenantName}
-              </Text>
-            </View>
-            <Pressable
-              onPress={onChangeTenant}
-              hitSlop={12}
-              style={({ pressed }) => [
-                styles.changeTenantIcon,
-                pressed && styles.changeTenantIconPressed,
-              ]}
-              accessibilityLabel="Ganti Kode Tenant"
-            >
-              <Repeat size={16} color={tokens.semantic.fg3} />
-            </Pressable>
-          </View>
-          <View style={styles.tenantUrlRow}>
-            <Globe size={12} color={tokens.semantic.fg3} />
-            <Text style={styles.tenantHost} numberOfLines={1}>
-              {getHost(tenantUrl)}
-            </Text>
-            {tenantCode ? <Text style={styles.tenantCodeChip}>{tenantCode}</Text> : null}
-          </View>
-        </View>
-      ) : null}
 
       <View style={styles.form}>
         <TextField
@@ -295,6 +289,28 @@ export function LoginScreen({ navigation }: Props): React.JSX.Element {
             </Pressable>
           ) : null}
         </View>
+
+        {tenantUrl ? (
+          <View style={styles.tenantFooter}>
+            <View style={styles.tenantUrlRow}>
+              <Globe size={12} color={tokens.semantic.fg3} />
+              <Text style={styles.tenantHost} numberOfLines={1}>
+                {maskHost(tenantUrl)}
+              </Text>
+              <Pressable
+                onPress={onChangeTenant}
+                hitSlop={12}
+                style={({ pressed }) => [
+                  styles.changeTenantIcon,
+                  pressed && styles.changeTenantIconPressed,
+                ]}
+                accessibilityLabel="Ganti Kode Tenant"
+              >
+                <Repeat size={14} color={tokens.semantic.fg3} />
+              </Pressable>
+            </View>
+          </View>
+        ) : null}
       </View>
       <AuthFooter />
     </Screen>
@@ -302,72 +318,45 @@ export function LoginScreen({ navigation }: Props): React.JSX.Element {
 }
 
 const styles = StyleSheet.create({
-  header: { gap: tokens.spacing.sp2, marginBottom: tokens.spacing.sp4 },
-  eyebrow: {
-    fontSize: tokens.fontSize.eyebrow,
-    color: tokens.semantic.fg3,
-    letterSpacing: 1.5,
-    textTransform: 'uppercase',
-    fontWeight: '700',
-  },
-  title: { fontSize: tokens.fontSize.h1, fontWeight: '800', color: tokens.semantic.fg1 },
-  tenantCard: {
-    padding: tokens.spacing.sp3,
-    borderRadius: tokens.radius.lg,
-    backgroundColor: tokens.color.blue50,
-    borderWidth: 1,
-    borderColor: tokens.color.blue100,
+  brandHeader: {
+    alignItems: 'center',
+    gap: tokens.spacing.sp2,
     marginBottom: tokens.spacing.sp4,
-    gap: tokens.spacing.sp1_5,
   },
-  tenantHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: tokens.spacing.sp2,
-  },
-  tenantRow: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: tokens.spacing.sp2,
-  },
-  changeTenantIcon: {
-    width: 28,
-    height: 28,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: tokens.radius.full,
-    backgroundColor: tokens.color.blue100,
-  },
-  changeTenantIconPressed: {
-    opacity: 0.6,
+  logo: {
+    width: 200,
+    height: 64,
   },
   tenantName: {
     fontSize: tokens.fontSize.h4,
     fontWeight: '700',
     color: tokens.semantic.fg1,
-    flex: 1,
+    textAlign: 'center',
+  },
+  tenantFooter: {
+    marginTop: tokens.spacing.sp3,
+    alignItems: 'center',
   },
   tenantUrlRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: tokens.spacing.sp1,
+    gap: tokens.spacing.sp1_5,
   },
   tenantHost: {
     fontSize: tokens.fontSize.small,
     color: tokens.semantic.fg3,
     fontFamily: tokens.font.mono,
-    flex: 1,
   },
-  tenantCodeChip: {
-    fontSize: tokens.fontSize.caption,
-    color: tokens.color.blue700,
-    fontFamily: tokens.font.mono,
-    fontWeight: '700',
-    backgroundColor: tokens.color.blue100,
-    paddingHorizontal: tokens.spacing.sp2,
-    paddingVertical: 2,
-    borderRadius: tokens.radius.sm,
+  changeTenantIcon: {
+    width: 24,
+    height: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: tokens.radius.full,
+    backgroundColor: tokens.semantic.surface2,
+  },
+  changeTenantIconPressed: {
+    opacity: 0.6,
   },
   form: { gap: tokens.spacing.sp3 },
   submitRow: { flexDirection: 'row', gap: tokens.spacing.sp2, alignItems: 'stretch' },
