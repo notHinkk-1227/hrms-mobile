@@ -11,6 +11,13 @@ export interface ChangelogEntry {
  */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '1.4.4',
+    date: '2026-05-21',
+    items: [
+      'Fix kritis: library "react-native-view-shot" sebelumnya tidak ter-link di native build karena PackageList yang ter-cache stale. Sekarang stempel info foto (selfie + peta + overlay GPS) sudah bisa di-capture normal di mode standard maupun enhanced',
+    ],
+  },
+  {
     version: '1.4.3',
     date: '2026-05-21',
     items: [
