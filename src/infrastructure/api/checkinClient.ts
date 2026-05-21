@@ -2,6 +2,7 @@ import { createTenantClient } from './tenantClient';
 import { toApiError } from './errors';
 import { getAllowedLocationsForToday } from './employeeClient';
 import { useFeaturesStore } from './featureDetect';
+import { hasSent, markSent } from '@infrastructure/persistence/sentUuids';
 import type { CheckinPort } from '@domain/ports/checkin';
 import type {
   AllowedLocation,
@@ -171,6 +172,9 @@ async function submitCheckinStandard(payload: ClockInPayload, logType: LogType):
   try {
     const client = createTenantClient();
     if (!payload.employee) throw new Error('Missing employee in payload');
+    // client_uuid dikirim sebagai pass-through; Frappe Employee Checkin vanilla
+    // tidak punya field ini, server abaikan. Dedup dilakukan client-side via
+    // infrastructure/persistence/sentUuids sebelum sampai ke fungsi ini.
     const body = {
       employee: payload.employee,
       log_type: logType,
@@ -178,6 +182,7 @@ async function submitCheckinStandard(payload: ClockInPayload, logType: LogType):
       latitude: payload.coordinate.latitude,
       longitude: payload.coordinate.longitude,
       device_id: payload.device.deviceId,
+      client_uuid: payload.clientUuid,
     };
 
     const response = await client.post('/api/resource/Employee Checkin', body);
@@ -189,6 +194,31 @@ async function submitCheckinStandard(payload: ClockInPayload, logType: LogType):
       serverTimestamp: doc?.time ?? new Date().toISOString(),
     };
   } catch (e) {
+    throw toApiError(e);
+  }
+}
+
+/**
+ * Vanilla mode helper: tulis "alasan di luar lokasi" sebagai Frappe Comment di
+ * Employee Checkin record. Comment muncul di timeline doc untuk audit HR.
+ * Pakai pattern Frappe standar — tidak perlu Custom Field di vanilla site.
+ */
+export async function addReasonComment(checkinName: string, reason: string): Promise<void> {
+  if (!checkinName || !reason?.trim()) return;
+  try {
+    const client = createTenantClient();
+    await client.post('/api/method/frappe.client.insert', {
+      doc: {
+        doctype: 'Comment',
+        comment_type: 'Info',
+        reference_doctype: 'Employee Checkin',
+        reference_name: checkinName,
+        content: `Alasan di luar lokasi: ${reason.trim()}`,
+      },
+    });
+  } catch (e) {
+    // Non-fatal: checkin sudah landed; reason cuma audit trail.
+    // Caller decide apakah mau retry / surface ke user.
     throw toApiError(e);
   }
 }
@@ -234,11 +264,27 @@ async function submitCheckinEnhanced(payload: ClockInPayload, logType: LogType):
   }
 }
 
-function submitCheckin(payload: ClockInPayload, logType: LogType): Promise<ClockInResult> {
+/** Sentinel error: dipakai supaya caller (use case) tahu ini dedup, bukan
+ * network error. Use case bisa interpret as success no-op. */
+export class AlreadySentError extends Error {
+  constructor(public readonly clientUuid: string) {
+    super(`Client UUID ${clientUuid} sudah pernah dikirim (dedup)`);
+    this.name = 'AlreadySentError';
+  }
+}
+
+async function submitCheckin(payload: ClockInPayload, logType: LogType): Promise<ClockInResult> {
+  // Mobile-side dedup. Vanilla mode: Frappe abaikan field client_uuid; kita
+  // gatekeep di sini supaya retry network/outbox tidak duplicate POST.
+  if (payload.clientUuid && hasSent(payload.clientUuid)) {
+    throw new AlreadySentError(payload.clientUuid);
+  }
   const features = useFeaturesStore.getState().features;
-  return features.hasSopwerHrms
-    ? submitCheckinEnhanced(payload, logType)
-    : submitCheckinStandard(payload, logType);
+  const result = features.hasSopwerHrms
+    ? await submitCheckinEnhanced(payload, logType)
+    : await submitCheckinStandard(payload, logType);
+  if (payload.clientUuid) markSent(payload.clientUuid);
+  return result;
 }
 
 export const checkinClient: CheckinPort = {

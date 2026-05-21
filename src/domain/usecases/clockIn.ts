@@ -8,6 +8,12 @@ import type {
   LogType,
 } from '@domain/entities/checkin';
 
+/** Generate client UUID untuk idempotency. Bukan crypto-grade — cukup untuk
+ * mobile-side dedup vanilla mode (collision prob effectively zero per device). */
+function generateClientUuid(): string {
+  return `${Date.now()}-${Math.random().toString(36).slice(2, 12)}`;
+}
+
 /** Haversine distance in meters — duplikat utility supaya domain tidak depend on
  * infrastructure. Pure math. */
 function haversineMeters(p1: Coordinate, p2: { latitude: number; longitude: number }): number {
@@ -69,6 +75,9 @@ export interface ClockInUseCaseInput {
   /** Selfie base64 (data: URI atau pure base64). */
   selfieBase64?: string;
   integrity?: Partial<ClockInPayload['integrity']>;
+  /** Opsional: caller bisa supply UUID dari outbox/retry context. Kalau kosong,
+   * use case generate baru. */
+  clientUuid?: string;
 }
 
 export interface ClockInPreview {
@@ -119,7 +128,7 @@ export class ClockInUseCase {
       },
       selfieBase64: input.selfieBase64 ?? '',
       clientTimestamp: new Date().toISOString(),
-      clientUuid: '',
+      clientUuid: input.clientUuid ?? generateClientUuid(),
       reasonOutsideLocation: input.reasonOutsideLocation,
     };
 
