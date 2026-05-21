@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Image, StyleSheet, Text, View } from 'react-native';
 import { MapPin } from 'lucide-react-native';
 import { tokens } from '@shared/theme/tokens';
@@ -10,6 +10,13 @@ export interface OSMStaticImageProps {
   zoom?: number;
   /** Ukuran container (w=h) dalam pt. Default 120. */
   size?: number;
+  /**
+   * Fire ketika semua tile resolved (load sukses atau error). Dipakai supaya
+   * captureRef di parent menunggu sampai map siap di-snapshot — di physical
+   * device tile CDN bisa loading 1-3 detik, capture terlalu cepat menyebabkan
+   * view-shot throw "Unable to snapshot view" di Android PixelCopy.
+   */
+  onReady?: () => void;
 }
 
 const TILE = 256;
@@ -77,13 +84,29 @@ export function OSMStaticImage({
   longitude,
   zoom = 16,
   size = 120,
+  onReady,
 }: OSMStaticImageProps): React.JSX.Element {
   const [errorCount, setErrorCount] = useState(0);
+  const [loadedCount, setLoadedCount] = useState(0);
 
   const tiles = useMemo(
     () => computeTiles(latitude, longitude, zoom, size),
     [latitude, longitude, zoom, size],
   );
+
+  // Reset counter ketika tiles berubah (koordinat/zoom/size berubah → re-fetch).
+  useEffect(() => {
+    setErrorCount(0);
+    setLoadedCount(0);
+  }, [tiles]);
+
+  // Fire onReady ketika semua tile resolved (load sukses + error).
+  const resolvedCount = loadedCount + errorCount;
+  useEffect(() => {
+    if (tiles.length > 0 && resolvedCount >= tiles.length) {
+      onReady?.();
+    }
+  }, [resolvedCount, tiles.length, onReady]);
 
   // Semua tile gagal → tampilkan fallback coords. Kalau cuma sebagian, tile
   // lain yang berhasil tetap render — background surface2 menutupi gap.
@@ -105,6 +128,7 @@ export function OSMStaticImage({
           key={t.key}
           source={{ uri: t.uri }}
           style={[styles.tile, { left: t.left, top: t.top }]}
+          onLoad={() => setLoadedCount((n) => n + 1)}
           onError={() => setErrorCount((n) => n + 1)}
         />
       ))}

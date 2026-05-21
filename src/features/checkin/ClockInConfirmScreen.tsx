@@ -73,6 +73,7 @@ interface PhotoHeroProps {
   photoPath: string | undefined;
   preview: ClockInPreview;
   onReplace: () => void;
+  onMapReady?: () => void;
 }
 
 /**
@@ -80,7 +81,7 @@ interface PhotoHeroProps {
  * menempel di pojok bawah foto. Kalau tidak ada foto, render placeholder
  * dengan icon kamera + tap untuk ambil.
  */
-function PhotoHero({ photoPath, preview, onReplace }: PhotoHeroProps): React.JSX.Element {
+function PhotoHero({ photoPath, preview, onReplace, onMapReady }: PhotoHeroProps): React.JSX.Element {
   const inside = !!(preview.nearest && preview.nearest.inside);
   const outside = !!(preview.nearest && !preview.nearest.inside);
   const lat = preview.coordinate.latitude.toFixed(6);
@@ -137,6 +138,7 @@ function PhotoHero({ photoPath, preview, onReplace }: PhotoHeroProps): React.JSX
             longitude={preview.coordinate.longitude}
             size={84}
             zoom={16}
+            onReady={onMapReady}
           />
         </View>
       </View>
@@ -194,6 +196,7 @@ export function ClockInConfirmScreen({ navigation, route }: Props): React.JSX.El
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [reasonOutside, setReasonOutside] = useState('');
+  const mapReadyRef = useRef(false);
   const features = useFeaturesStore((s) => s.features);
   const isOutside = !!(preview?.nearest && !preview.nearest.inside);
   const showReasonField =
@@ -208,6 +211,8 @@ export function ClockInConfirmScreen({ navigation, route }: Props): React.JSX.El
     }
     setLoading(true);
     setError(null);
+    // Koordinat baru → tile map akan re-fetch, reset readiness.
+    mapReadyRef.current = false;
     try {
       const result = await useCase.preview(employee.name);
       setPreview(result);
@@ -218,6 +223,32 @@ export function ClockInConfirmScreen({ navigation, route }: Props): React.JSX.El
       setLoading(false);
     }
   }, [employee?.name]);
+
+  /**
+   * Tunggu sampai OSMStaticImage selesai load semua tile (atau timeout). Ini
+   * deterministik — replace dari hardcoded setTimeout(700) yang race-condition
+   * di physical device dengan network lemah (Carto CDN bisa 1-3 detik). Tanpa
+   * ini, captureRef trigger sebelum Image bitmap decode → view-shot throw
+   * "Unable to snapshot view" di Android, fallback ke raw selfie tanpa overlay.
+   */
+  const waitForMapReady = useCallback(async (timeoutMs = 5000): Promise<void> => {
+    if (mapReadyRef.current) return;
+    const start = Date.now();
+    while (!mapReadyRef.current) {
+      if (Date.now() - start > timeoutMs) return;
+      await new Promise<void>((r) => {
+        setTimeout(r, 100);
+      });
+    }
+    // 1 frame buffer supaya layout settle sebelum PixelCopy snapshot.
+    await new Promise<void>((r) => {
+      setTimeout(r, 50);
+    });
+  }, []);
+
+  const handleMapReady = useCallback(() => {
+    mapReadyRef.current = true;
+  }, []);
 
   useEffect(() => {
     loadPreview();
@@ -240,10 +271,9 @@ export function ClockInConfirmScreen({ navigation, route }: Props): React.JSX.El
       let selfieBase64: string | undefined;
       if (photoPath && features.hasSopwerHrms) {
         try {
-          // Beri waktu tile map loaded sebelum capture (Carto CDN ~500ms)
-          await new Promise<void>((r) => {
-            setTimeout(r, 700);
-          });
+          // Tunggu OSM tile load selesai (max 5s) supaya capture deterministik
+          // di physical device — bukan race terhadap timeout magic number.
+          await waitForMapReady(5000);
           selfieBase64 = await captureRef(shotRef, {
             format: 'jpg',
             quality: 0.9,
@@ -290,9 +320,7 @@ export function ClockInConfirmScreen({ navigation, route }: Props): React.JSX.El
         if (photoPath && outcome.result.name && !features.hasSopwerHrms) {
           let uploadUri: string;
           try {
-            await new Promise<void>((r) => {
-            setTimeout(r, 700);
-          });
+            await waitForMapReady(5000);
             uploadUri = await captureRef(shotRef, {
               format: 'jpg',
               quality: 0.9,
@@ -399,6 +427,7 @@ export function ClockInConfirmScreen({ navigation, route }: Props): React.JSX.El
                   photoPath={photoPath}
                   preview={preview}
                   onReplace={() => navigation.replace('ClockInCamera', { logType })}
+                  onMapReady={handleMapReady}
                 />
               </ViewShot>
               {/* Tombol Ganti di luar ViewShot supaya tidak ikut ter-capture */}
