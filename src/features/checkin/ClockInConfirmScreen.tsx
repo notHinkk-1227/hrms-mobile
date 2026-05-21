@@ -14,7 +14,7 @@ import { tokens } from '@shared/theme/tokens';
 import { useAuthStore } from '@features/auth/store';
 import { ClockInUseCase, ClockInPreview } from '@domain/usecases/clockIn';
 import { locationService } from '@infrastructure/location/locationService';
-import { checkinClient, getAllowedLocationsForToday } from '@infrastructure/api/checkinClient';
+import { addReasonComment, checkinClient, getAllowedLocationsForToday } from '@infrastructure/api/checkinClient';
 import { useFeaturesStore } from '@infrastructure/api/featureDetect';
 import { uploadFile } from '@infrastructure/api/uploadClient';
 import { getDeviceFingerprint, getDeviceId } from '@infrastructure/device/deviceInfo';
@@ -196,9 +196,14 @@ export function ClockInConfirmScreen({ navigation, route }: Props): React.JSX.El
   const [reasonOutside, setReasonOutside] = useState('');
   const features = useFeaturesStore((s) => s.features);
   const isOutside = !!(preview?.nearest && !preview.nearest.inside);
-  const showReasonField =
-    features.hasSopwerHrms && features.geofence && isOutside;
-  const reasonRequired = showReasonField && features.softBlockOutsideGeofence;
+  // Vanilla mode (tanpa sopwer_hrms): reason juga ditampilkan saat di luar zona
+  // sebagai bukti soft-policy. Disimpan via Frappe Comment post-success
+  // (lihat addReasonComment call di blok success di bawah). Per locked
+  // decision plan dual-mode: vanilla PERMISSIVE, izinkan submit + reason wajib.
+  const showReasonField = features.geofence && isOutside;
+  const reasonRequired =
+    showReasonField &&
+    (features.hasSopwerHrms ? features.softBlockOutsideGeofence : true);
 
   const loadPreview = useCallback(async () => {
     if (!employee?.name) {
@@ -286,6 +291,22 @@ export function ClockInConfirmScreen({ navigation, route }: Props): React.JSX.El
       );
 
       if (outcome.kind === 'success') {
+        // Vanilla mode: kalau ada reason (mode di luar zona), post sebagai
+        // Frappe Comment ke Employee Checkin record. Non-fatal — checkin
+        // sudah landed, reason cuma audit trail untuk HR review.
+        if (
+          !features.hasSopwerHrms &&
+          outcome.result.name &&
+          reasonOutside.trim().length > 0
+        ) {
+          addReasonComment(outcome.result.name, reasonOutside.trim()).catch(() => {
+            toast.show({
+              variant: 'warning',
+              title: 'Alasan belum tersimpan',
+              message: 'Presensi berhasil tapi catatan alasan gagal diunggah.',
+            });
+          });
+        }
         // Standard mode — backend tidak handle selfie, upload composite manual.
         if (photoPath && outcome.result.name && !features.hasSopwerHrms) {
           let uploadUri: string;
