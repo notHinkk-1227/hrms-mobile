@@ -8,7 +8,7 @@ import {
   Text,
   View,
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NavigationProp } from '@react-navigation/native';
 import { CheckCircle2 } from 'lucide-react-native';
 import { EmptyState } from '@shared/components/EmptyState';
@@ -68,6 +68,14 @@ export function TeamRequestsScreen(): React.JSX.Element {
   useEffect(() => {
     load();
   }, [load]);
+
+  // Refetch saat balik dari detail (approve/reject) supaya list ter-update
+  // tanpa pull-to-refresh manual.
+  useFocusEffect(
+    useCallback(() => {
+      load();
+    }, [load]),
+  );
 
   const filtered =
     activeTab === 'all'

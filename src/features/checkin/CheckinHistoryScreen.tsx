@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { useFocusEffect } from '@react-navigation/native';
 import { ChevronRight, Clock, LogIn, LogOut, MapPin } from 'lucide-react-native';
 import { EmptyState } from '@shared/components/EmptyState';
 import { Screen } from '@shared/components/Screen';
@@ -78,6 +79,13 @@ export function CheckinHistoryScreen({ navigation }: Props): React.JSX.Element {
   useEffect(() => {
     load();
   }, [load]);
+
+  // Refetch saat balik dari ClockInSuccess — entry baru langsung muncul.
+  useFocusEffect(
+    useCallback(() => {
+      load();
+    }, [load]),
+  );
 
   const sections = groupByDay(rows);
   const flat = sections.flatMap((s) => [

@@ -8,7 +8,7 @@ import {
   Text,
   View,
 } from 'react-native';
-import { useNavigation, useRoute } from '@react-navigation/native';
+import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
 import type { NavigationProp, RouteProp } from '@react-navigation/native';
 import { Inbox } from 'lucide-react-native';
 import { EmptyState } from '@shared/components/EmptyState';
@@ -92,6 +92,13 @@ export function MyRequestsScreen(): React.JSX.Element {
     setLoading(true);
     load();
   }, [load]);
+
+  // Refetch saat balik dari detail (cancel/withdraw) — sumber-of-truth selalu server.
+  useFocusEffect(
+    useCallback(() => {
+      load();
+    }, [load]),
+  );
 
   const filtered =
     activeTab === 'all'

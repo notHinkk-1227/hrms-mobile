@@ -172,6 +172,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       biometricEnabled && user && employee
         ? { user, apiKey: apiKey ?? '', apiSecret: apiSecret ?? '', employee }
         : null;
+    // Inbox read state — survive antar session sama dengan LANGUAGE/THEME.
+    // User-side preference (announcement yang sudah dibaca), bukan session data.
+    const inboxRead = persist.getObject<string[]>(StorageKeys.INBOX_READ);
 
     persist.clearAll();
     if (tenantCode && tenantUrl && tenantName && tenantResolvedAt) {
@@ -193,6 +196,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }
     persist.setString(StorageKeys.LANGUAGE, language);
     persist.setString(StorageKeys.THEME, theme);
+    if (inboxRead && inboxRead.length > 0) {
+      persist.setObject(StorageKeys.INBOX_READ, inboxRead);
+    }
     set({
       isAuthenticated: false,
       user: null,

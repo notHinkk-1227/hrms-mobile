@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { NavigationProp } from '@react-navigation/native';
 import { Bell } from 'lucide-react-native';
@@ -97,6 +97,13 @@ export function NotificationsScreen({ navigation }: Props): React.JSX.Element {
   useEffect(() => {
     load();
   }, [load]);
+
+  // Refetch tiap kali screen di-focus — notif baru langsung muncul.
+  useFocusEffect(
+    useCallback(() => {
+      load();
+    }, [load]),
+  );
 
   const handleTap = async (row: NotificationLog) => {
     if (!row.read) {

@@ -11,6 +11,16 @@ export interface ChangelogEntry {
  */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '1.5.0',
+    date: '2026-05-21',
+    items: [
+      'Daftar Permohonan Tim, Permohonan Saya, dan Riwayat Presensi sekarang auto-refresh saat Anda kembali dari layar detail — tidak perlu tarik-untuk-refresh manual setelah approve/reject/submit',
+      'Notifikasi muncul otomatis: saat Anda submit cuti / klaim / kasbon / koreksi presensi / tukar shift, atasan dapat push notif; saat slip gaji bulan baru terbit, Anda dapat push notif',
+      'Hitungan badge "belum dibaca" di Inbox tetap tersimpan setelah logout/login — tidak balik lagi ke nol setelah re-login',
+      'Notifikasi tab juga auto-refresh tiap kali dibuka',
+    ],
+  },
+  {
     version: '1.4.4',
     date: '2026-05-21',
     items: [
