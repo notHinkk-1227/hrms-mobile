@@ -11,6 +11,13 @@ export interface ChangelogEntry {
  */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '1.4.2',
+    date: '2026-05-21',
+    items: [
+      'Perbaikan stempel info di foto presensi — composite (selfie + peta + overlay GPS) sekarang menunggu foto selfie selesai decode sebelum di-capture, tidak hanya peta. Sebelumnya pesan "Stempel info tidak dibuat" muncul setiap kirim presensi',
+    ],
+  },
+  {
     version: '1.4.1',
     date: '2026-05-21',
     items: [
