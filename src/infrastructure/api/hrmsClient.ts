@@ -136,11 +136,38 @@ export const leaveApi = {
   },
 
   async getLeaveDetails(employee: string, date: string): Promise<Record<string, LeaveBalance>> {
-    const res = await get<{ message: Record<string, LeaveBalance> }>(
+    // Frappe HR endpoint balikin nested structure:
+    //   { message: { leave_allocation: { "<type>": {remaining_leaves, total_leaves, leaves_taken, ...} }, ... } }
+    // Mobile pakai shape flat {leave_balance, total_leaves_allocated, leaves_taken}.
+    // Normalisasi di sini supaya UI tetap konsisten dengan field-name standar mobile.
+    const res = await get<{
+      message?: {
+        leave_allocation?: Record<
+          string,
+          {
+            remaining_leaves?: number;
+            total_leaves?: number;
+            leaves_taken?: number;
+            leaves_pending_approval?: number;
+            expired_leaves?: number;
+          }
+        >;
+      };
+    }>(
       '/api/method/hrms.hr.doctype.leave_application.leave_application.get_leave_details',
       { employee, date },
     );
-    return res.message ?? {};
+    const allocation = res.message?.leave_allocation ?? {};
+    const result: Record<string, LeaveBalance> = {};
+    for (const [leaveType, info] of Object.entries(allocation)) {
+      result[leaveType] = {
+        leave_balance: Number(info.remaining_leaves ?? 0),
+        total_leaves_allocated: Number(info.total_leaves ?? 0),
+        leaves_taken: Number(info.leaves_taken ?? 0),
+        leaves_pending_approval: Number(info.leaves_pending_approval ?? 0),
+      };
+    }
+    return result;
   },
 
   async submit(input: LeaveApplicationInput): Promise<{ name: string }> {

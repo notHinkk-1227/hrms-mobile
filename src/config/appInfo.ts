@@ -1,12 +1,16 @@
 /**
  * Single source of truth untuk identitas build mobile.
  *
- * Saat bump versi: update `VERSION` di sini DAN `version` di `package.json` +
- * `android/app/build.gradle` (versionName).
+ * VERSION otomatis di-baca dari native build (Android: versionName di
+ * `android/app/build.gradle`, iOS: CFBundleShortVersionString di Info.plist)
+ * via `react-native-device-info`. Tidak perlu update manual di sini —
+ * cukup bump di build.gradle / Info.plist saat release.
  */
 
+import DeviceInfo from 'react-native-device-info';
+
 export const APP_NAME = 'Hadir by Sopwer';
-export const VERSION = '1.3.1';
+export const VERSION = DeviceInfo.getVersion();
 export const COMPANY_NAME = 'PT Sopwer Teknologi Indonesia';
 export const COMPANY_TAGLINE = 'Maksimalkan Potensi Karyawan';
 

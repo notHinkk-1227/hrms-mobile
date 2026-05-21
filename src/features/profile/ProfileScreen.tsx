@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { Alert, Image, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NavigationProp } from '@react-navigation/native';
@@ -14,6 +14,18 @@ import { logoutFromFrappe } from '@features/auth/authService';
 import { biometricService } from '@infrastructure/biometric/biometricService';
 import type { MainStackParamList } from '@app/navigation/types';
 import { getFullLabel } from '@config/appInfo';
+import { leaveApi, attendanceApi } from '@infrastructure/api/hrmsClient';
+
+/** Hitung % kehadiran berdasarkan Attendance.status bulan berjalan. */
+function calcAttendanceRate(
+  records: { status?: string }[],
+): number | null {
+  if (records.length === 0) return null;
+  const counted = records.filter((r) =>
+    ['Present', 'Half Day', 'Work From Home'].includes(r.status ?? ''),
+  ).length;
+  return Math.round((counted / records.length) * 100);
+}
 
 function getInitials(name: string | undefined): string {
   if (!name) return '?';
@@ -37,15 +49,48 @@ export function ProfileScreen(): React.JSX.Element {
   const setTheme = useAuthStore((s) => s.setTheme);
   const logout = useAuthStore((s) => s.logout);
 
-  const [biometricLabel, setBiometricLabel] = React.useState<string | null>(null);
-  const [langSheetOpen, setLangSheetOpen] = React.useState(false);
-  const [themeSheetOpen, setThemeSheetOpen] = React.useState(false);
+  const [biometricLabel, setBiometricLabel] = useState<string | null>(null);
+  const [langSheetOpen, setLangSheetOpen] = useState(false);
+  const [themeSheetOpen, setThemeSheetOpen] = useState(false);
+  const [leaveRemaining, setLeaveRemaining] = useState<number | null>(null);
+  const [attendanceRate, setAttendanceRate] = useState<number | null>(null);
 
-  React.useEffect(() => {
+  useEffect(() => {
     biometricService.isAvailable().then(({ available, biometryType }) => {
       if (available) setBiometricLabel(biometricService.labelFor(biometryType));
     });
   }, []);
+
+  const loadStats = useCallback(async () => {
+    if (!employee?.name) return;
+    const today = new Date();
+    const todayIso = today.toISOString().slice(0, 10);
+    try {
+      const balance = await leaveApi.getLeaveDetails(employee.name, todayIso);
+      // Sum sisa cuti semua tipe (Frappe HR balikin per leave_type).
+      const total = Object.values(balance).reduce(
+        (acc, b) => acc + (Number(b.leave_balance) || 0),
+        0,
+      );
+      setLeaveRemaining(total);
+    } catch {
+      // Silent — kalau gagal, statistik tetap "—".
+    }
+    try {
+      const records = await attendanceApi.listByMonth(
+        employee.name,
+        today.getFullYear(),
+        today.getMonth() + 1,
+      );
+      setAttendanceRate(calcAttendanceRate(records));
+    } catch {
+      // Silent
+    }
+  }, [employee?.name]);
+
+  useEffect(() => {
+    loadStats();
+  }, [loadStats]);
 
   const toggleBiometric = async (next: boolean) => {
     if (!next) {
@@ -110,15 +155,19 @@ export function ProfileScreen(): React.JSX.Element {
             </View>
             <View style={styles.statsGrid}>
               <View style={styles.statBox}>
-                <Text style={[styles.statValue, { color: tokens.color.green300 }]}>9</Text>
+                <Text style={[styles.statValue, { color: tokens.color.green300 }]}>
+                  {leaveRemaining !== null ? leaveRemaining : '—'}
+                </Text>
                 <Text style={styles.statLabel}>Sisa cuti</Text>
               </View>
               <View style={[styles.statBox, styles.statBoxMid]}>
-                <Text style={[styles.statValue, { color: tokens.color.yellow300 }]}>4</Text>
+                <Text style={[styles.statValue, { color: tokens.color.yellow300 }]}>—</Text>
                 <Text style={styles.statLabel}>Lembur (jam)</Text>
               </View>
               <View style={styles.statBox}>
-                <Text style={[styles.statValue, { color: tokens.color.blue300 }]}>98%</Text>
+                <Text style={[styles.statValue, { color: tokens.color.blue300 }]}>
+                  {attendanceRate !== null ? `${attendanceRate}%` : '—'}
+                </Text>
                 <Text style={styles.statLabel}>Kehadiran</Text>
               </View>
             </View>

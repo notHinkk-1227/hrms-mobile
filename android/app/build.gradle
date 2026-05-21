@@ -94,8 +94,8 @@ android {
         applicationId "com.sopwer.hadir"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 47
-        versionName "1.5.0"
+        versionCode 48
+        versionName "1.5.1"
         externalNativeBuild {
             cmake {
                 // NDK 27 sudah hapus 'gold' linker; CMake IPO/LTO check pakai

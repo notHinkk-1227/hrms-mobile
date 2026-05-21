@@ -11,6 +11,15 @@ export interface ChangelogEntry {
  */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '1.5.1',
+    date: '2026-05-21',
+    items: [
+      'Fix: kartu "Sisa cuti" di form Ajukan Cuti sekarang muncul setelah pilih tipe cuti — sebelumnya data tidak ke-parse dari server (field "leave_balance" vs "remaining_leaves" beda nama)',
+      'Statistik di Profil sekarang real: Sisa cuti (jumlah semua tipe), Kehadiran % (dari Attendance bulan berjalan). Lembur sementara ditampilkan "—" sampai endpoint overtime tersedia',
+      'Versi aplikasi (di layar Profil, Tentang Aplikasi, layar Masuk) sekarang otomatis sync dengan build native — tidak lagi stuck di v1.3.1',
+    ],
+  },
+  {
     version: '1.5.0',
     date: '2026-05-21',
     items: [
