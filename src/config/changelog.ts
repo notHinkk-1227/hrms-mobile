@@ -11,6 +11,16 @@ export interface ChangelogEntry {
  */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '1.4.1',
+    date: '2026-05-21',
+    items: [
+      'Mode standard (tanpa sopwer_hrms) — kolom "Alasan presensi di luar lokasi" sekarang juga muncul, dengan alasan disimpan sebagai catatan di Employee Checkin (lihat di Frappe Desk timeline)',
+      'Mobile-side dedup: kalau koneksi putus saat kirim presensi, retry tidak akan bikin presensi ganda',
+      'Foto + GPS tetap dikirim ke Employee Checkin baik di mode standard maupun enhanced — backend HR cukup pakai bawaan Frappe HR',
+      'Stabilitas: perbaikan kecil di layar konfirmasi presensi (peta + tata letak tombol)',
+    ],
+  },
+  {
     version: '1.3.0',
     date: '2026-05-18',
     items: [
