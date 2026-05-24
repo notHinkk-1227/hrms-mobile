@@ -13,6 +13,7 @@ import { useToast } from '@shared/components/Toast';
 import { tokens } from '@shared/theme/tokens';
 import { useAuthStore } from '@features/auth/store';
 import { ClockInUseCase, ClockInPreview } from '@domain/usecases/clockIn';
+import { analytics } from '@infrastructure/analytics';
 import { locationService } from '@infrastructure/location/locationService';
 import { addReasonComment, checkinClient, getAllowedLocationsForToday } from '@infrastructure/api/checkinClient';
 import { useFeaturesStore } from '@infrastructure/api/featureDetect';
@@ -400,6 +401,10 @@ export function ClockInConfirmScreen({ navigation, route }: Props): React.JSX.El
             });
           }
         }
+        analytics.logEvent(logType === 'IN' ? 'clock_in' : 'clock_out', {
+          gps_accuracy_meters: Math.round(preview.coordinate.accuracyMeters),
+          override_out_of_geofence: override ? 1 : 0,
+        }).catch(() => undefined);
         navigation.replace('ClockInSuccess', { result: outcome.result, logType });
       } else if (outcome.kind === 'out_of_geofence') {
         const distance = formatDistance(outcome.nearest?.distanceM ?? 0);

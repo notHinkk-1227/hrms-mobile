@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { NavigationContainer, NavigationContainerRef } from '@react-navigation/native';
+import { analytics } from '@infrastructure/analytics';
 import { authEvents } from '@infrastructure/api/authEvents';
 import { useFeaturesStore } from '@infrastructure/api/featureDetect';
 import { biometricService } from '@infrastructure/biometric/biometricService';
@@ -28,11 +29,22 @@ export function RootNavigator(): React.JSX.Element {
   const refreshFeatures = useFeaturesStore((s) => s.refresh);
 
   const navigationRef = useRef<NavigationContainerRef<any> | null>(null);
+  const lastScreenName = useRef<string | undefined>(undefined);
+  const employeeName = useAuthStore((s) => s.employee?.name);
 
   useEffect(() => {
     hydrate();
     hydrateFeatures();
   }, [hydrate, hydrateFeatures]);
+
+  // Set/clear analytics user ID setiap kali auth state berubah.
+  useEffect(() => {
+    if (isAuthenticated && employeeName) {
+      analytics.setUserId(employeeName).catch(() => undefined);
+    } else {
+      analytics.setUserId(null).catch(() => undefined);
+    }
+  }, [isAuthenticated, employeeName]);
 
   // Setelah login: detect backend features (ping sopwer_hrms.api.health.ping).
   // Standard mode kalau 404 / network error.
@@ -140,7 +152,17 @@ export function RootNavigator(): React.JSX.Element {
   const showMain = isAuthenticated && privacyAccepted;
 
   return (
-    <NavigationContainer ref={navigationRef}>
+    <NavigationContainer
+      ref={navigationRef}
+      onStateChange={() => {
+        const route = navigationRef.current?.getCurrentRoute();
+        const name = route?.name;
+        if (name && name !== lastScreenName.current) {
+          lastScreenName.current = name;
+          analytics.logScreenView(name).catch(() => undefined);
+        }
+      }}
+    >
       {showMain ? <MainStack /> : <AuthStack />}
     </NavigationContainer>
   );

@@ -15,6 +15,7 @@ import { useToast } from '@shared/components/Toast';
 import { FormHeader } from '@features/forms/FormHeader';
 import { tokens } from '@shared/theme/tokens';
 import { useAuthStore } from '@features/auth/store';
+import { analytics } from '@infrastructure/analytics';
 import { leaveApi, LeaveType, LeaveBalance } from '@infrastructure/api/hrmsClient';
 import { getEmployeeApprovers } from '@infrastructure/api/employeeClient';
 import { ApiError } from '@infrastructure/api/errors';
@@ -137,6 +138,9 @@ export function ApplyLeaveScreen({ navigation }: Props): React.JSX.Element {
         description: description.trim(),
         leave_approver: leaveApprover ?? undefined,
       });
+      analytics.logEvent('leave_request_submitted', {
+        leave_type: leaveType,
+      }).catch(() => undefined);
       navigation.replace('FormSuccess', {
         doctype: 'Leave Application',
         name: result.name,

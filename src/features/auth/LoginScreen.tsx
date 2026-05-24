@@ -9,6 +9,7 @@ import { TextField } from '@shared/components/TextField';
 import { tokens } from '@shared/theme/tokens';
 import { getHost } from '@shared/utils/url';
 import { env } from '@config/env';
+import { analytics } from '@infrastructure/analytics';
 import { biometricService } from '@infrastructure/biometric/biometricService';
 import { persist, StorageKeys } from '@infrastructure/storage/mmkv';
 import type { Employee } from '@domain/entities/employee';
@@ -142,6 +143,9 @@ export function LoginScreen({ navigation }: Props): React.JSX.Element {
     setLoading(true);
     try {
       const result = await login(email.trim(), password);
+      analytics.logEvent('login_success', {
+        employee_id: result.employee?.name,
+      }).catch(() => undefined);
       // Phase 1: session cookie auth (no api key/secret yet). Placeholder strings.
       setLogin({
         user: result.user,
@@ -180,6 +184,9 @@ export function LoginScreen({ navigation }: Props): React.JSX.Element {
       // RootNavigator auto-switch ke MainTabs setelah isAuthenticated + privacyAccepted
     } catch (e) {
       const apiError = e as ApiError;
+      analytics.logEvent('login_failure', {
+        error_code: apiError.kind ?? 'unknown',
+      }).catch(() => undefined);
       if (apiError.kind === 'unauthorized') {
         const lockResult = recordFailedAttempt();
         if (lockResult.locked) {

@@ -7,6 +7,7 @@ import { Screen } from '@shared/components/Screen';
 import { StatusBadge } from '@shared/components/StatusBadge';
 import { FormHeader } from '@features/forms/FormHeader';
 import { tokens } from '@shared/theme/tokens';
+import { analytics } from '@infrastructure/analytics';
 import { getDoctype, updateDocStatus } from '@infrastructure/api/hrmsClient';
 import {
   getDoctypeLabel,
@@ -94,6 +95,10 @@ export function TeamRequestDetailScreen({ navigation, route }: Props): React.JSX
             setActing(true);
             try {
               await updateDocStatus(doctype, name, status);
+              analytics.logEvent('approval_action', {
+                action: status === 'Approved' ? 'approve' : 'reject',
+                doc_type: doctype,
+              }).catch(() => undefined);
               Alert.alert(
                 'Berhasil',
                 `Permohonan ${status === 'Approved' ? 'disetujui' : 'ditolak'}.`,

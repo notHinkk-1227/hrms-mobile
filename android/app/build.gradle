@@ -68,8 +68,11 @@ react {
 
 /**
  * Set this to true to Run Proguard on Release builds to minify the Java bytecode.
+ * Aktif untuk release v1.6.0+ — rules custom di proguard-rules.pro preserve
+ * Firebase Analytics/Messaging, Hermes, RN bridge, react-native-view-shot,
+ * MMKV. Test assembleRelease sebelum ship.
  */
-def enableProguardInReleaseBuilds = false
+def enableProguardInReleaseBuilds = true
 
 /**
  * The preferred build flavor of JavaScriptCore (JSC)
@@ -94,8 +97,8 @@ android {
         applicationId "com.sopwer.hadir"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 48
-        versionName "1.5.1"
+        versionCode 49
+        versionName "1.6.0"
         externalNativeBuild {
             cmake {
                 // NDK 27 sudah hapus 'gold' linker; CMake IPO/LTO check pakai
@@ -140,7 +143,20 @@ android {
         release {
             signingConfig signingConfigs.release
             minifyEnabled enableProguardInReleaseBuilds
+            shrinkResources enableProguardInReleaseBuilds
             proguardFiles getDefaultProguardFile("proguard-android.txt"), "proguard-rules.pro"
+        }
+    }
+
+    // ABI splits — output APK terpisah per architecture supaya download size
+    // turun ~50% (universal 36 MB → per-ABI ~15-20 MB). Side-load OK; kalau
+    // nanti Play Store ganti ke AAB (bundle) yang split otomatis di Play.
+    splits {
+        abi {
+            enable true
+            reset()
+            include "armeabi-v7a", "arm64-v8a"
+            universalApk false
         }
     }
 }
