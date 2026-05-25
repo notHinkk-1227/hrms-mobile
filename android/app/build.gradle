@@ -106,12 +106,9 @@ android {
                 arguments "-DCMAKE_INTERPROCEDURAL_OPTIMIZATION=OFF"
             }
         }
-        // ABI filter: hanya arm64-v8a + armeabi-v7a (semua HP Android sejak 2017).
-        // Skip x86/x86_64 — itu hanya untuk emulator dan NDK 27 + reanimated 3.19
-        // punya bug compile clang untuk target ini. Mengurangi APK size signifikan.
-        ndk {
-            abiFilters "arm64-v8a", "armeabi-v7a"
-        }
+        // ABI selection now handled via `splits.abi` block below (per-ABI APK output).
+        // Sebelumnya defaultConfig.ndk.abiFilters dipakai untuk universal APK;
+        // mutually exclusive dengan splits.abi (gradle reject keduanya).
     }
     signingConfigs {
         debug {
