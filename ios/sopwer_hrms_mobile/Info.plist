@@ -5,7 +5,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>en</string>
 	<key>CFBundleDisplayName</key>
-	<string>sopwer_hrms_mobile</string>
+	<string>Hadir by Sopwer</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -26,14 +26,25 @@
 	<true/>
 	<key>NSAppTransportSecurity</key>
 	<dict>
-	  <!-- Do not change NSAllowsArbitraryLoads to true, or you will risk app rejection! -->
 		<key>NSAllowsArbitraryLoads</key>
 		<false/>
 		<key>NSAllowsLocalNetworking</key>
 		<true/>
 	</dict>
+	<key>NSCameraUsageDescription</key>
+	<string>sopwer HRMS perlu kamera untuk foto selfie absensi dan scan dokumen.</string>
+	<key>NSFaceIDUsageDescription</key>
+	<string>sopwer HRMS menggunakan Face ID untuk autentikasi cepat dan aman.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string></string>
+	<string>sopwer HRMS perlu lokasi Anda untuk validasi absensi check-in / check-out.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>sopwer HRMS perlu mikrofon untuk merekam video laporan jika diperlukan.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>sopwer HRMS perlu izin menyimpan slip gaji / dokumen ke galeri Anda.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>sopwer HRMS perlu akses galeri untuk upload bukti / dokumen pendukung.</string>
+	<key>RCTNewArchEnabled</key>
+	<true/>
 	<key>UILaunchStoryboardName</key>
 	<string>LaunchScreen</string>
 	<key>UIRequiredDeviceCapabilities</key>
