@@ -352,9 +352,13 @@ export function HomeScreen({ navigation }: Props): React.JSX.Element {
             <Text style={styles.avatarText}>{getInitials(employee?.employee_name)}</Text>
           </View>
           <View style={styles.greetText}>
-            <Text style={styles.greetEyebrow}>{tenantName ?? 'Hadir by Sopwer'}</Text>
+            <Text style={styles.greetEyebrow} numberOfLines={1} ellipsizeMode="tail">
+              {tenantName ?? 'Hadir by Sopwer'}
+            </Text>
             <Text style={styles.greetTitle}>{getGreeting()},</Text>
-            <Text style={styles.greetName}>{employee?.employee_name ?? 'Karyawan'}</Text>
+            <Text style={styles.greetName} numberOfLines={1} ellipsizeMode="tail">
+              {employee?.employee_name ?? 'Karyawan'}
+            </Text>
           </View>
           {inboxEnabled ? (
             <Pressable
@@ -542,11 +546,11 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: tokens.color.blue700,
   },
-  greetText: { flex: 1 },
+  greetText: { flex: 1, minWidth: 0 },
   greetEyebrow: {
     fontSize: tokens.fontSize.eyebrow,
     color: tokens.semantic.fg3,
-    letterSpacing: 1.5,
+    letterSpacing: 1,
     textTransform: 'uppercase',
     fontWeight: '700',
   },
