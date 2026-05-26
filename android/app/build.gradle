@@ -145,16 +145,28 @@ android {
         }
     }
 
-    // ABI splits — output APK terpisah per architecture supaya download size
-    // turun ~50% (universal 36 MB → per-ABI ~15-20 MB). Side-load OK; kalau
-    // nanti Play Store ganti ke AAB (bundle) yang split otomatis di Play.
-    splits {
-        abi {
-            enable true
-            reset()
-            include "armeabi-v7a", "arm64-v8a"
-            universalApk false
+    // ABI splits HANYA untuk build APK (assembleRelease) — output per-ABI APK
+    // (~15-20 MB tiap) untuk side-load. Saat build AAB (bundleRelease) Play
+    // Asset Delivery handle ABI split otomatis di server side, dan splits.abi
+    // di gradle malah konflik ("Sequence contains more than one matching element"
+    // pada buildReleasePreBundle).
+    def isBundleBuild = gradle.startParameter.taskNames.any { it.toLowerCase().contains("bundle") }
+    if (!isBundleBuild) {
+        splits {
+            abi {
+                enable true
+                reset()
+                include "armeabi-v7a", "arm64-v8a"
+                universalApk false
+            }
         }
+    }
+
+    // AAB language/density/abi splits — Play Console serve per-device automatic.
+    bundle {
+        abi { enableSplit = true }
+        language { enableSplit = true }
+        density { enableSplit = true }
     }
 }
 
