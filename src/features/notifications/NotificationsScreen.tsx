@@ -111,6 +111,7 @@ export function NotificationsScreen({ navigation }: Props): React.JSX.Element {
         curr.map((r) => (r.name === row.name ? { ...r, read: 1 } : r)),
       );
       notificationsApi.markRead(row.name).catch((e: Error) => {
+        console.error('[Notifications] markRead failed', { name: row.name, error: e });
         // Revert optimistic update kalau gagal supaya UI sync dengan server.
         setRows((curr) =>
           curr.map((r) => (r.name === row.name ? { ...r, read: 0 } : r)),
@@ -181,6 +182,7 @@ export function NotificationsScreen({ navigation }: Props): React.JSX.Element {
         message: 'Semua notifikasi ditandai dibaca',
       });
     } catch (e) {
+      console.error('[Notifications] markAllRead failed', { userId, error: e });
       toast.show({
         variant: 'error',
         title: 'Gagal',

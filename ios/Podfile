@@ -15,6 +15,18 @@ if linkage != nil
 end
 
 target 'sopwer_hrms_mobile' do
+  # Firebase v22 (Swift, static) needs modular headers from these pods.
+  # Scoped (not global) to avoid `react_runtime` module redefinition under
+  # global use_modular_headers!.
+  pod 'GoogleUtilities', :modular_headers => true
+  pod 'FirebaseCore', :modular_headers => true
+  pod 'FirebaseCoreExtension', :modular_headers => true
+  pod 'FirebaseCoreInternal', :modular_headers => true
+  pod 'FirebaseInstallations', :modular_headers => true
+  pod 'FirebaseMessaging', :modular_headers => true
+  pod 'GoogleDataTransport', :modular_headers => true
+  pod 'nanopb', :modular_headers => true
+
   config = use_native_modules!
 
   use_react_native!(
@@ -31,5 +43,18 @@ target 'sopwer_hrms_mobile' do
       :mac_catalyst_enabled => false,
       # :ccache_enabled => true
     )
+
+    # fmt 11.0.2 + Xcode 26 / Clang 17+ constexpr regression: FMT_STRING lambda
+    # rejected as not a constant expression. Disable consteval-based format-string
+    # verification in fmt for this target.
+    installer.pods_project.targets.each do |target|
+      if target.name == 'fmt'
+        target.build_configurations.each do |config|
+          defs = config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] || ['$(inherited)']
+          defs = [defs] unless defs.is_a?(Array)
+          config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] = defs + ['FMT_USE_CONSTEVAL=0']
+        end
+      end
+    end
   end
 end
