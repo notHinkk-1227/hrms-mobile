@@ -74,37 +74,26 @@ export const notificationsApi = {
     }
   },
 
+  // PUT /api/resource Notification Log kena 403 karena user umum tidak punya
+  // Write permission. Pakai whitelisted method mark_as_read yang bypass via
+  // SQL — method ini di Frappe versi terbaru wajib terima `docname`.
   async markRead(name: string): Promise<void> {
     try {
       const client = createTenantClient();
-      // Mark satu notif read pakai frappe.client.set_value (bypass permission
-      // via Frappe core kalau session user adalah for_user dari notif itu).
-      await client.put(`/api/resource/Notification Log/${encodeURIComponent(name)}`, {
-        read: 1,
-      });
+      await client.post(
+        '/api/method/frappe.desk.doctype.notification_log.notification_log.mark_as_read',
+        { docname: name },
+      );
     } catch (e) {
       throw toApiError(e);
     }
   },
 
-  /**
-   * Bulk mark semua notif user sebagai read. Coba dulu Frappe whitelisted
-   * endpoint `mark_as_read` — kalau gagal atau session user tidak match,
-   * fallback ke fetch unread list + PUT per-item (lebih reliable, lebih lambat
-   * tapi pasti jalan).
-   */
+  // Tidak ada bulk endpoint stock yang menerima list; loop per-docname dengan
+  // batch parallel agar tidak overload server.
   async markAllRead(user: string): Promise<void> {
-    const client = createTenantClient();
     try {
-      await client.post(
-        '/api/method/frappe.desk.doctype.notification_log.notification_log.mark_as_read',
-      );
-    } catch {
-      // ignore, fallback ke loop di bawah
-    }
-
-    // Verify + force-update via PUT loop kalau masih ada unread
-    try {
+      const client = createTenantClient();
       const res = await client.get('/api/resource/Notification Log', {
         params: {
           filters: JSON.stringify([
@@ -118,16 +107,16 @@ export const notificationsApi = {
       const unread: Array<{ name: string }> = res.data?.data ?? [];
       if (unread.length === 0) return;
 
-      // PUT per-item dalam batch parallel 10x supaya tidak overload server
       const BATCH = 10;
       for (let i = 0; i < unread.length; i += BATCH) {
         const slice = unread.slice(i, i + BATCH);
         await Promise.all(
           slice.map((n) =>
             client
-              .put(`/api/resource/Notification Log/${encodeURIComponent(n.name)}`, {
-                read: 1,
-              })
+              .post(
+                '/api/method/frappe.desk.doctype.notification_log.notification_log.mark_as_read',
+                { docname: n.name },
+              )
               .catch(() => undefined),
           ),
         );
