@@ -279,7 +279,7 @@ const styles = StyleSheet.create({
   scroll: { gap: tokens.spacing.sp4, paddingBottom: tokens.spacing.formCtaSpace },
   form: { gap: tokens.spacing.sp3 },
   dateRow: { flexDirection: 'row', gap: tokens.spacing.sp2 },
-  dateCol: { flex: 1 },
+  dateCol: { flex: 1, minWidth: 0 },
   textArea: { height: 96, paddingTop: tokens.spacing.sp2, textAlignVertical: 'top' },
   ctaRow: { flexDirection: 'row', gap: tokens.spacing.sp2 },
   ctaCancel: { flex: 1 },
