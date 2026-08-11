@@ -63,47 +63,47 @@ PODS:
     - GoogleUtilities/Network (~> 8.1)
     - "GoogleUtilities/NSData+zlib (~> 8.1)"
     - nanopb (~> 3.30910.0)
-  - GoogleDataTransport (10.1.0):
+  - GoogleDataTransport (10.1.1):
     - nanopb (~> 3.30910.0)
     - PromisesObjC (~> 2.4)
-  - GoogleUtilities (8.1.0):
-    - GoogleUtilities/AppDelegateSwizzler (= 8.1.0)
-    - GoogleUtilities/Environment (= 8.1.0)
-    - GoogleUtilities/Logger (= 8.1.0)
-    - GoogleUtilities/MethodSwizzler (= 8.1.0)
-    - GoogleUtilities/Network (= 8.1.0)
-    - "GoogleUtilities/NSData+zlib (= 8.1.0)"
-    - GoogleUtilities/Privacy (= 8.1.0)
-    - GoogleUtilities/Reachability (= 8.1.0)
-    - GoogleUtilities/SwizzlerTestHelpers (= 8.1.0)
-    - GoogleUtilities/UserDefaults (= 8.1.0)
-  - GoogleUtilities/AppDelegateSwizzler (8.1.0):
+  - GoogleUtilities (8.1.2):
+    - GoogleUtilities/AppDelegateSwizzler (= 8.1.2)
+    - GoogleUtilities/Environment (= 8.1.2)
+    - GoogleUtilities/Logger (= 8.1.2)
+    - GoogleUtilities/MethodSwizzler (= 8.1.2)
+    - GoogleUtilities/Network (= 8.1.2)
+    - "GoogleUtilities/NSData+zlib (= 8.1.2)"
+    - GoogleUtilities/Privacy (= 8.1.2)
+    - GoogleUtilities/Reachability (= 8.1.2)
+    - GoogleUtilities/SwizzlerTestHelpers (= 8.1.2)
+    - GoogleUtilities/UserDefaults (= 8.1.2)
+  - GoogleUtilities/AppDelegateSwizzler (8.1.2):
     - GoogleUtilities/Environment
     - GoogleUtilities/Logger
     - GoogleUtilities/Network
     - GoogleUtilities/Privacy
-  - GoogleUtilities/Environment (8.1.0):
+  - GoogleUtilities/Environment (8.1.2):
     - GoogleUtilities/Privacy
-  - GoogleUtilities/Logger (8.1.0):
+  - GoogleUtilities/Logger (8.1.2):
     - GoogleUtilities/Environment
     - GoogleUtilities/Privacy
-  - GoogleUtilities/MethodSwizzler (8.1.0):
+  - GoogleUtilities/MethodSwizzler (8.1.2):
     - GoogleUtilities/Logger
     - GoogleUtilities/Privacy
-  - GoogleUtilities/Network (8.1.0):
+  - GoogleUtilities/Network (8.1.2):
     - GoogleUtilities/Logger
     - "GoogleUtilities/NSData+zlib"
     - GoogleUtilities/Privacy
     - GoogleUtilities/Reachability
-  - "GoogleUtilities/NSData+zlib (8.1.0)":
+  - "GoogleUtilities/NSData+zlib (8.1.2)":
     - GoogleUtilities/Privacy
-  - GoogleUtilities/Privacy (8.1.0)
-  - GoogleUtilities/Reachability (8.1.0):
+  - GoogleUtilities/Privacy (8.1.2)
+  - GoogleUtilities/Reachability (8.1.2):
     - GoogleUtilities/Logger
     - GoogleUtilities/Privacy
-  - GoogleUtilities/SwizzlerTestHelpers (8.1.0):
+  - GoogleUtilities/SwizzlerTestHelpers (8.1.2):
     - GoogleUtilities/MethodSwizzler
-  - GoogleUtilities/UserDefaults (8.1.0):
+  - GoogleUtilities/UserDefaults (8.1.2):
     - GoogleUtilities/Logger
     - GoogleUtilities/Privacy
   - hermes-engine (0.80.0):
@@ -177,7 +177,7 @@ PODS:
     - ReactCommon/turbomodule/core
     - SocketRocket
     - Yoga
-  - PromisesObjC (2.4.0)
+  - PromisesObjC (2.4.1)
   - RCT-Folly (2024.11.18.00):
     - boost
     - DoubleConversion
@@ -3269,14 +3269,14 @@ SPEC CHECKSUMS:
   fmt: 3471b8fc477b3476918fb2816e612e5efe686bd0
   glog: 5683914934d5b6e4240e497e0f4a3b42d1854183
   GoogleAppMeasurement: 700dce7541804bec33db590a5c496b663fbe2539
-  GoogleDataTransport: aae35b7ea0c09004c3797d53c8c41f66f219d6a7
-  GoogleUtilities: 00c88b9a86066ef77f0da2fab05f65d7768ed8e1
+  GoogleDataTransport: a24e58982ab3ba2f64d79613e027fe7f57e88539
+  GoogleUtilities: 766ace00c6b10d8148408f329d10c4f051931850
   hermes-engine: 7068e976238b29e97b3bafd09a994542af7d5c0b
   MMKVCore: 3d16ce9f7d411e135020915fde98a056859a1efa
   nanopb: fad817b59e0457d11a5dfbde799381cd727c1275
   NitroMmkv: 97a20027f388a79338f7f61b36e8fcea03ed990a
   NitroModules: b6ae0e07aaae9c51cc144dd85f16e899de5eb1c6
-  PromisesObjC: f5707f49cb48b9636751c5b2e7d227e43fba9f47
+  PromisesObjC: 752c3227f599e3467650e47ea36f433eeb10c273
   RCT-Folly: 846fda9475e61ec7bcbf8a3fe81edfcaeb090669
   RCTDeprecation: ff787f6c860a1b97dd1bc27264b61d23ad1994da
   RCTRequired: 664eb8399ed8a83e26ab65af7c2ad390f7e61696

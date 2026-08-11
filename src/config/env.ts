@@ -8,7 +8,7 @@
  * atau via MMKV `config.controller_url` (override saat startup di hydrate).
  */
 
-const DEFAULT_CONTROLLER_URL = 'https://cloud.sopwer.net';
+const DEFAULT_CONTROLLER_URL = 'https://office.sopwer.id';
 
 export const env = {
   controllerUrl: DEFAULT_CONTROLLER_URL,
