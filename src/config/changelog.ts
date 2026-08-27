@@ -11,6 +11,39 @@ export interface ChangelogEntry {
  */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '1.6.3',
+    date: '2026-08-27',
+    items: [
+      'Klaim: tombol lampiran bukti bayar muncul di halaman detail saat status Draft atau sudah Disetujui',
+    ],
+  },
+  {
+    version: '1.6.2',
+    date: '2026-08-01',
+    items: [
+      'Cuti: date picker di iOS menggunakan bottom-sheet modal, lebih nyaman digunakan',
+      'Fix: kolom tanggal di daftar cuti tidak lagi terpotong',
+      'iOS: app icon baru + tampilan dipaksa mode terang (light mode)',
+      'Fix: izin akses lokasi di iOS',
+      'Config: URL backend diarahkan ke office.sopwer.id',
+    ],
+  },
+  {
+    version: '1.6.1',
+    date: '2026-07-15',
+    items: [
+      'Fix: judul perusahaan di Beranda tidak lagi terpotong padahal ruang masih cukup',
+    ],
+  },
+  {
+    version: '1.6.0',
+    date: '2026-07-01',
+    items: [
+      'Analytics: integrasi Firebase Analytics (GA4) untuk insight penggunaan aplikasi',
+      'Android: build APK per arsitektur CPU (arm64-v8a, x86_64) — ukuran unduhan lebih kecil',
+    ],
+  },
+  {
     version: '1.5.1',
     date: '2026-05-21',
     items: [

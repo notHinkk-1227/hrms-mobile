@@ -5,6 +5,8 @@ import { Screen } from '@shared/components/Screen';
 import { StatusBanner, BannerStatus } from '@shared/components/StatusBanner';
 import { StatusTimeline, TimelineStep } from '@shared/components/StatusTimeline';
 import { FormHeader } from '@features/forms/FormHeader';
+import { AttachmentRow } from '@shared/components/AttachmentRow';
+import type { UploadedFile } from '@infrastructure/api/uploadClient';
 import { tokens } from '@shared/theme/tokens';
 import { getDoctype } from '@infrastructure/api/hrmsClient';
 import { getDoctypeLabel } from '@infrastructure/api/requestsClient';
@@ -158,6 +160,7 @@ export function RequestDetailScreen({ navigation, route }: Props): React.JSX.Ele
   const [doc, setDoc] = useState<Record<string, unknown> | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [buktiBayar, setBuktiBayar] = useState<UploadedFile | null>(null);
 
   useEffect(() => {
     getDoctype(doctype, name)
@@ -221,6 +224,20 @@ export function RequestDetailScreen({ navigation, route }: Props): React.JSX.Ele
                 ))}
               </View>
             ) : null}
+
+            {doctype === 'Expense Claim' &&
+            (String(doc.status) === 'Draft' || String(doc.approval_status) === 'Approved') ? (
+              <View style={styles.buktiBayarBlock}>
+                <Text style={styles.itemsTitle}>Bukti Bayar</Text>
+                <AttachmentRow
+                  label="Lampirkan bukti pembayaran"
+                  file={buktiBayar}
+                  onChange={setBuktiBayar}
+                  attachToDoctype="Expense Claim"
+                  attachToName={name}
+                />
+              </View>
+            ) : null}
           </View>
         )}
       </ScrollView>
@@ -276,4 +293,5 @@ const styles = StyleSheet.create({
   itemDesc: { fontSize: tokens.fontSize.body, fontWeight: '600', color: tokens.semantic.fg1 },
   itemMeta: { fontSize: tokens.fontSize.small, color: tokens.semantic.fg3 },
   itemAmount: { fontSize: tokens.fontSize.body, color: tokens.semantic.brand, fontWeight: '700' },
+  buktiBayarBlock: { gap: tokens.spacing.sp2 },
 });
