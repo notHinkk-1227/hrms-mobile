@@ -35,6 +35,8 @@
 	<string>sopwer HRMS perlu kamera untuk foto selfie absensi dan scan dokumen.</string>
 	<key>NSFaceIDUsageDescription</key>
 	<string>sopwer HRMS menggunakan Face ID untuk autentikasi cepat dan aman.</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>sopwer HRMS perlu lokasi Anda untuk validasi absensi check-in / check-out.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>sopwer HRMS perlu lokasi Anda untuk validasi absensi check-in / check-out.</string>
 	<key>NSMicrophoneUsageDescription</key>
