@@ -190,7 +190,7 @@ async function fileToBase64(path: string): Promise<string> {
 }
 
 export function ClockInConfirmScreen({ navigation, route }: Props): React.JSX.Element {
-  const { logType, photoPath } = route.params;
+  const { logType, photoPath, faceLiveness } = route.params;
   const employee = useAuthStore((s) => s.employee);
   const toast = useToast();
   const shotRef = useRef<ViewShotRef>(null);
@@ -338,6 +338,7 @@ export function ClockInConfirmScreen({ navigation, route }: Props): React.JSX.El
           overrideOutOfGeofence: override,
           reasonOutsideLocation: reasonOutside.trim() || undefined,
           selfieBase64,
+          integrity: { faceLiveness },
         },
         preview,
       );
@@ -415,6 +416,23 @@ export function ClockInConfirmScreen({ navigation, route }: Props): React.JSX.El
           [
             { text: 'Batal', style: 'cancel' },
             { text: 'Tetap Kirim', style: 'destructive', onPress: () => doSubmit(true) },
+          ],
+        );
+      } else if (outcome.kind === 'spoof_detected') {
+        // Hard block -- tidak ada tombol "tetap kirim" (beda dari geofence).
+        // Satu-satunya jalan keluar: ambil ulang foto. Pesan beda tergantung
+        // alasan: 'NoFace' (wajah tidak ditemukan) vs 'Fail' (terdeteksi spoof).
+        const isNoFace = outcome.liveness?.verdict === 'NoFace';
+        Alert.alert(
+          isNoFace ? 'Wajah tidak terdeteksi' : 'Foto tidak terverifikasi',
+          isNoFace
+            ? 'Wajah tidak terlihat jelas di foto. Pastikan wajah Anda terlihat penuh dan pencahayaan cukup, lalu ambil ulang selfie.'
+            : 'Foto yang diambil terdeteksi bukan foto asli (kemungkinan foto dari layar HP lain atau hasil cetak). Silakan ambil ulang selfie secara langsung.',
+          [
+            {
+              text: 'Ambil Ulang Foto',
+              onPress: () => navigation.replace('ClockInCamera', { logType }),
+            },
           ],
         );
       } else {

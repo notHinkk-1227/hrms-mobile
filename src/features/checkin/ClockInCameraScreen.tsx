@@ -19,6 +19,7 @@ import { Check, RotateCcw, X } from 'lucide-react-native';
 import { Screen } from '@shared/components/Screen';
 import { tokens } from '@shared/theme/tokens';
 import type { HomeStackParamList } from '@app/navigation/types';
+import { livenessService } from '@infrastructure/liveness/livenessService';
 
 type Props = NativeStackScreenProps<HomeStackParamList, 'ClockInCamera'>;
 
@@ -33,6 +34,15 @@ export function ClockInCameraScreen({ navigation, route }: Props): React.JSX.Ele
   const [capturing, setCapturing] = useState(false);
   const [permissionAsked, setPermissionAsked] = useState(false);
   const [tick, setTick] = useState(0);
+  const [checkingLiveness, setCheckingLiveness] = useState(false);
+  const [blockReason, setBlockReason] = useState<'Fail' | 'NoFace' | null>(null);
+
+  // Preload model anti-spoofing sedini mungkin (saat screen ini dibuka,
+  // bukan saat user sudah pencet "Pakai Foto Ini") supaya checkLiveness()
+  // nanti tidak perlu nunggu loading model (~beberapa ratus ms).
+  useEffect(() => {
+    livenessService.preload();
+  }, []);
 
   useEffect(() => {
     const id = setInterval(() => setTick((t) => t + 1), 1000);
@@ -71,11 +81,29 @@ export function ClockInCameraScreen({ navigation, route }: Props): React.JSX.Ele
     }
   }, [capturing]);
 
-  const handleRetake = () => setPhotoPath(null);
+  const handleRetake = () => {
+    setPhotoPath(null);
+    setBlockReason(null);
+  };
 
-  const handleUse = () => {
-    if (!photoPath) return;
-    navigation.replace('ClockInConfirm', { logType, photoPath });
+  const handleUse = async () => {
+    if (!photoPath || checkingLiveness) return;
+    setCheckingLiveness(true);
+    setBlockReason(null);
+    try {
+      const faceLiveness = await livenessService.checkLiveness(photoPath);
+      if (faceLiveness.verdict === 'Fail' || faceLiveness.verdict === 'NoFace') {
+        // Hard block di level UI juga (selain di use case) -- user harus
+        // ambil ulang foto, tidak ada tombol "lanjut saja". Pesan beda
+        // tergantung alasan: 'Fail' = terdeteksi spoof, 'NoFace' = wajah
+        // tidak ditemukan dengan jelas di frame (beda kasus, bukan spoof).
+        setBlockReason(faceLiveness.verdict);
+        return;
+      }
+      navigation.replace('ClockInConfirm', { logType, photoPath, faceLiveness });
+    } finally {
+      setCheckingLiveness(false);
+    }
   };
 
   const handleSkip = () => {
@@ -154,16 +182,39 @@ export function ClockInCameraScreen({ navigation, route }: Props): React.JSX.Ele
         </View>
       ) : null}
 
+      {photoPath && blockReason ? (
+        <View style={styles.spoofNotice} pointerEvents="none">
+          <Text style={styles.spoofNoticeText}>
+            {blockReason === 'NoFace'
+              ? 'Wajah tidak terdeteksi dengan jelas. Pastikan wajah Anda terlihat penuh dan pencahayaan cukup, lalu ambil ulang.'
+              : 'Foto terdeteksi bukan asli. Silakan ambil ulang selfie secara langsung.'}
+          </Text>
+        </View>
+      ) : null}
+
       <View style={[styles.bottomBar, { paddingBottom: insets.bottom + tokens.spacing.sp4 }]}>
         {photoPath ? (
           <View style={styles.actionsRow}>
-            <Pressable style={styles.retakeBtn} onPress={handleRetake}>
+            <Pressable style={styles.retakeBtn} onPress={handleRetake} disabled={checkingLiveness}>
               <RotateCcw size={20} color={tokens.color.white} />
               <Text style={styles.retakeText}>Ambil Ulang</Text>
             </Pressable>
-            <Pressable style={styles.useBtn} onPress={handleUse}>
-              <Check size={20} color={tokens.color.white} />
-              <Text style={styles.useText}>Pakai Foto Ini</Text>
+            <Pressable
+              style={[styles.useBtn, checkingLiveness && styles.useBtnDisabled]}
+              onPress={handleUse}
+              disabled={checkingLiveness}
+            >
+              {checkingLiveness ? (
+                <>
+                  <ActivityIndicator size="small" color={tokens.color.white} />
+                  <Text style={styles.useText}>Memeriksa foto…</Text>
+                </>
+              ) : (
+                <>
+                  <Check size={20} color={tokens.color.white} />
+                  <Text style={styles.useText}>Pakai Foto Ini</Text>
+                </>
+              )}
             </Pressable>
           </View>
         ) : (
@@ -352,7 +403,25 @@ const styles = StyleSheet.create({
     borderRadius: tokens.radius.md,
     backgroundColor: tokens.color.green600,
   },
+  useBtnDisabled: { opacity: 0.7 },
   useText: { color: tokens.color.white, fontWeight: '700', fontSize: tokens.fontSize.body },
+  spoofNotice: {
+    position: 'absolute',
+    bottom: 132,
+    left: tokens.spacing.sp4,
+    right: tokens.spacing.sp4,
+    backgroundColor: 'rgba(220,38,38,0.92)',
+    borderRadius: tokens.radius.md,
+    paddingHorizontal: tokens.spacing.sp3,
+    paddingVertical: tokens.spacing.sp3,
+  },
+  spoofNoticeText: {
+    color: tokens.color.white,
+    fontSize: tokens.fontSize.small,
+    fontWeight: '600',
+    textAlign: 'center',
+    lineHeight: 18,
+  },
   permWrap: {
     flex: 1,
     alignItems: 'center',

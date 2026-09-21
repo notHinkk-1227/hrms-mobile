@@ -12,6 +12,10 @@ import { useFeaturesStore } from '@infrastructure/api/featureDetect';
 import { biometricService } from '@infrastructure/biometric/biometricService';
 import { getFullLabel } from '@config/appInfo';
 import type { MainStackParamList } from '@app/navigation/types';
+import { loadTensorflowModel } from 'react-native-fast-tflite';
+import FaceDetection from '@react-native-ml-kit/face-detection';
+import { Skia } from '@shopify/react-native-skia';
+import { livenessService } from '@infrastructure/liveness/livenessService';
 
 type Props = NativeStackScreenProps<MainStackParamList, 'Debug'>;
 
@@ -38,6 +42,10 @@ export function DebugScreen({ navigation }: Props): React.JSX.Element {
   const [unreadCount, setUnreadCount] = useState<string>('-');
   const [rtConnected, setRtConnected] = useState<boolean>(realtimeService.isConnected());
   const [tick, setTick] = useState(0);
+  const [antiSpoofRows, setAntiSpoofRows] = useState<Row[]>([]);
+  const [antiSpoofTesting, setAntiSpoofTesting] = useState(false);
+  const [livenessRows, setLivenessRows] = useState<Row[]>([]);
+  const [livenessTesting, setLivenessTesting] = useState(false);
 
   useEffect(() => {
     biometricService.isAvailable().then((r) => {
@@ -68,6 +76,156 @@ export function DebugScreen({ navigation }: Props): React.JSX.Element {
 
   const apiKey = persist.getString(StorageKeys.AUTH_API_KEY);
   const apiSecret = persist.getString(StorageKeys.AUTH_API_SECRET);
+
+  async function runAntiSpoofSmokeTest() {
+    setAntiSpoofTesting(true);
+    const results: Row[] = [];
+
+    // --- Tes 1: load model v2 (scale 2.7) ---
+    let modelV2: Awaited<ReturnType<typeof loadTensorflowModel>> | null = null;
+    try {
+      modelV2 = await loadTensorflowModel(
+        require('@shared/assets/models/anti-spoof-minifasnet-v2.tflite'),
+        [], // delegate kosong = default CPU (XNNPACK)
+      );
+      const shape = modelV2.inputs[0]?.shape?.join('x') ?? '?';
+      results.push({
+        label: 'Model v2 loaded',
+        value: `OK, input shape [${shape}]`,
+        ok: shape === '1x80x80x3',
+      });
+    } catch (e) {
+      results.push({
+        label: 'Model v2 loaded',
+        value: `GAGAL: ${e instanceof Error ? e.message : String(e)}`,
+        ok: false,
+      });
+    }
+
+    // --- Tes 2: load model v1se (scale 4.0) ---
+    let modelV1se: Awaited<ReturnType<typeof loadTensorflowModel>> | null = null;
+    try {
+      modelV1se = await loadTensorflowModel(
+        require('@shared/assets/models/anti-spoof-minifasnet-v1se.tflite'),
+        [],
+      );
+      const shape = modelV1se.inputs[0]?.shape?.join('x') ?? '?';
+      results.push({
+        label: 'Model v1se loaded',
+        value: `OK, input shape [${shape}]`,
+        ok: shape === '1x80x80x3',
+      });
+    } catch (e) {
+      results.push({
+        label: 'Model v1se loaded',
+        value: `GAGAL: ${e instanceof Error ? e.message : String(e)}`,
+        ok: false,
+      });
+    }
+
+    // --- Tes 3: jalankan inference dummy (paling penting -- di sinilah
+    // native crash paling mungkin terjadi kalau ada masalah linking Nitro) ---
+    if (modelV2) {
+      try {
+        // Input harus ArrayBuffer (bukan TypedArray langsung) -- ambil
+        // .buffer dari Float32Array, sesuai API resmi react-native-fast-tflite.
+        const dummyInput = new Float32Array(1 * 80 * 80 * 3).fill(128).buffer;
+        const start = Date.now();
+        const output = await modelV2.run([dummyInput]);
+        const elapsedMs = Date.now() - start;
+        const outLength = new Float32Array(output[0]).length;
+        results.push({
+          label: 'Inference dummy (model v2)',
+          value: `OK, output length=${outLength}, ${elapsedMs}ms`,
+          ok: outLength === 3,
+        });
+      } catch (e) {
+        results.push({
+          label: 'Inference dummy (model v2)',
+          value: `GAGAL: ${e instanceof Error ? e.message : String(e)}`,
+          ok: false,
+        });
+      }
+    }
+
+    // --- Tes 4: pastikan modul native ML Kit Face Detection ke-link ---
+    // (bukan tes fungsional -- itu baru divalidasi di Fase 6 dengan foto asli)
+    try {
+      const isLinked = typeof FaceDetection?.detect === 'function';
+      results.push({
+        label: 'ML Kit Face Detection linked',
+        value: isLinked ? 'OK, modul native terdeteksi' : 'GAGAL: modul undefined',
+        ok: isLinked,
+      });
+    } catch (e) {
+      results.push({
+        label: 'ML Kit Face Detection linked',
+        value: `GAGAL: ${e instanceof Error ? e.message : String(e)}`,
+        ok: false,
+      });
+    }
+
+    setAntiSpoofRows(results);
+    setAntiSpoofTesting(false);
+  }
+
+  async function runLivenessSmokeTest() {
+    setLivenessTesting(true);
+    const results: Row[] = [];
+
+    // --- Tes 1: pastikan Skia ke-link (buat surface kecil, snapshot, baca pixel) ---
+    try {
+      const surface = Skia.Surface.Make(10, 10);
+      if (!surface) throw new Error('Skia.Surface.Make return null');
+      const canvas = surface.getCanvas();
+      const paint = Skia.Paint();
+      paint.setColor(Skia.Color('red'));
+      canvas.drawRect({ x: 0, y: 0, width: 10, height: 10 }, paint);
+      const pixels = surface.makeImageSnapshot().readPixels() as Uint8Array | null;
+      const firstPixelRed = pixels ? pixels[0] : -1;
+      results.push({
+        label: 'Skia linked',
+        value: `OK, pixel merah R=${firstPixelRed} (harus ~255)`,
+        ok: firstPixelRed > 200,
+      });
+    } catch (e) {
+      results.push({
+        label: 'Skia linked',
+        value: `GAGAL: ${e instanceof Error ? e.message : String(e)}`,
+        ok: false,
+      });
+    }
+
+    // --- Tes 2: preload livenessService (load 2 model + cek isReady) ---
+    try {
+      const start = Date.now();
+      await livenessService.preload();
+      const elapsedMs = Date.now() - start;
+      const ready = livenessService.isReady();
+      results.push({
+        label: 'livenessService.preload()',
+        value: ready ? `OK, isReady=true, ${elapsedMs}ms` : 'GAGAL: isReady=false setelah preload',
+        ok: ready,
+      });
+    } catch (e) {
+      results.push({
+        label: 'livenessService.preload()',
+        value: `GAGAL: ${e instanceof Error ? e.message : String(e)}`,
+        ok: false,
+      });
+    }
+
+    results.push({
+      label: 'Catatan',
+      value:
+        'Tes checkLiveness() dengan foto asli baru bisa divalidasi penuh di Fase 6 ' +
+        '(setelah wiring ke ClockInCameraScreen) -- butuh foto selfie nyata, bukan dummy.',
+      ok: undefined,
+    });
+
+    setLivenessRows(results);
+    setLivenessTesting(false);
+  }
 
   const rows: Row[] = [
     { label: 'App version', value: getFullLabel() },
@@ -163,6 +321,76 @@ export function DebugScreen({ navigation }: Props): React.JSX.Element {
         >
           <Text style={styles.btnTextSecondary}>Refresh Backend Features</Text>
         </Pressable>
+
+        <Pressable
+          onPress={runAntiSpoofSmokeTest}
+          disabled={antiSpoofTesting}
+          style={({ pressed }) => [
+            styles.btn,
+            styles.btnSecondary,
+            pressed && styles.btnPressed,
+            antiSpoofTesting && { opacity: 0.5 },
+          ]}
+        >
+          <Text style={styles.btnTextSecondary}>
+            {antiSpoofTesting ? 'Testing...' : 'Test Model Anti-Spoofing (Fase 2)'}
+          </Text>
+        </Pressable>
+
+        {antiSpoofRows.length > 0 && (
+          <View style={styles.card}>
+            {antiSpoofRows.map((row, i) => (
+              <View key={i} style={styles.row}>
+                <Text style={styles.label}>{row.label}</Text>
+                <Text
+                  style={[
+                    styles.value,
+                    row.ok === false && styles.valueBad,
+                    row.ok === true && styles.valueGood,
+                  ]}
+                  selectable
+                >
+                  {row.value}
+                </Text>
+              </View>
+            ))}
+          </View>
+        )}
+
+        <Pressable
+          onPress={runLivenessSmokeTest}
+          disabled={livenessTesting}
+          style={({ pressed }) => [
+            styles.btn,
+            styles.btnSecondary,
+            pressed && styles.btnPressed,
+            livenessTesting && { opacity: 0.5 },
+          ]}
+        >
+          <Text style={styles.btnTextSecondary}>
+            {livenessTesting ? 'Testing...' : 'Test Skia + livenessService (Fase 4)'}
+          </Text>
+        </Pressable>
+
+        {livenessRows.length > 0 && (
+          <View style={styles.card}>
+            {livenessRows.map((row, i) => (
+              <View key={i} style={styles.row}>
+                <Text style={styles.label}>{row.label}</Text>
+                <Text
+                  style={[
+                    styles.value,
+                    row.ok === false && styles.valueBad,
+                    row.ok === true && styles.valueGood,
+                  ]}
+                  selectable
+                >
+                  {row.value}
+                </Text>
+              </View>
+            ))}
+          </View>
+        )}
 
         <Text style={styles.note}>
           Long-press versi di Tentang Aplikasi untuk buka layar ini. Semua nilai

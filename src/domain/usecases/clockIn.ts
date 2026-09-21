@@ -103,6 +103,17 @@ export class ClockInUseCase {
 
   /** Step 2: setelah user konfirmasi, submit ke server. */
   async submit(input: ClockInUseCaseInput, preview: ClockInPreview): Promise<ClockInOutcome> {
+    // Liveness check: hard block kalau verdict 'Fail' (spoof) ATAU 'NoFace'
+    // (wajah tidak ditemukan dengan jelas -- foto tidak valid untuk presensi).
+    // TIDAK ada override di sini (beda dengan geofence) -- ini kontrol
+    // anti-fraud & validitas foto, resolusinya wajib ambil ulang foto.
+    // Verdict 'Unknown' (kegagalan TEKNIS model/device) TETAP LOLOS --
+    // fail-open, sesuai LIVENESS_FAIL_OPEN.
+    const liveness = input.integrity?.faceLiveness;
+    if (liveness?.verdict === 'Fail' || liveness?.verdict === 'NoFace') {
+      return { kind: 'spoof_detected', liveness };
+    }
+
     if (preview.nearest && !preview.nearest.inside && !input.overrideOutOfGeofence) {
       return {
         kind: 'out_of_geofence',
@@ -121,6 +132,7 @@ export class ClockInUseCase {
         isMockLocation: input.integrity?.isMockLocation ?? false,
         isRootedDevice: input.integrity?.isRootedDevice ?? false,
         playIntegrityVerdict: input.integrity?.playIntegrityVerdict ?? 'Unknown',
+        faceLiveness: liveness,
       },
       device: {
         deviceId: input.deviceId,

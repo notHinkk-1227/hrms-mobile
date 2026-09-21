@@ -1,5 +1,5 @@
 import type { NavigatorScreenParams } from '@react-navigation/native';
-import type { LogType, ClockInResult } from '@domain/entities/checkin';
+import type { LogType, ClockInResult, LivenessSignals } from '@domain/entities/checkin';
 
 export type AuthStackParamList = {
   Onboarding: undefined;
@@ -11,7 +11,7 @@ export type AuthStackParamList = {
 export type HomeStackParamList = {
   HomeMain: undefined;
   ClockInCamera: { logType: LogType };
-  ClockInConfirm: { logType: LogType; photoPath?: string };
+  ClockInConfirm: { logType: LogType; photoPath?: string; faceLiveness?: LivenessSignals };
   ClockInSuccess: { result: ClockInResult; logType: LogType };
   CheckinHistory: undefined;
   CheckinDetail: { name: string };
