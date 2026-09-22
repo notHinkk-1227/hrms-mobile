@@ -123,3 +123,33 @@ describe('ClockInUseCase.submit — anti-spoofing (liveness) blocking', () => {
     expect(deps.checkinPort.submitClockIn).toHaveBeenCalledTimes(1);
   });
 });
+
+describe('ClockInUseCase.submit — LIVENESS_FAIL_OPEN=false (fail-closed)', () => {
+  // LIVENESS_FAIL_OPEN di-mock false di sini untuk verifikasi cabang
+  // fail-closed benar-benar dibaca dari config, bukan hardcoded di use case.
+  // Constant asli di config/liveness.ts tetap true (default production).
+  beforeEach(() => {
+    jest.resetModules();
+    jest.doMock('@config/liveness', () => ({ LIVENESS_FAIL_OPEN: false }));
+  });
+
+  afterEach(() => {
+    jest.dontMock('@config/liveness');
+  });
+
+  test("verdict 'Unknown' + LIVENESS_FAIL_OPEN=false -> ikut hard block", async () => {
+    // Re-require setelah mock supaya clockIn.ts baca LIVENESS_FAIL_OPEN versi
+    // mock. Pakai require() sinkron (bukan dynamic import()) karena transform
+    // Babel proyek ini CommonJS -- dynamic import butuh flag experimental
+    // yang tidak diaktifkan di konfigurasi Jest proyek.
+    const { ClockInUseCase: MockedClockInUseCase } = require('@domain/usecases/clockIn');
+    const deps = makeDeps();
+    const useCase = new MockedClockInUseCase(deps);
+    const liveness: LivenessSignals = { isLive: false, score: 0, verdict: 'Unknown' };
+
+    const outcome = await useCase.submit(makeInput(liveness), makePreview());
+
+    expect(outcome.kind).toBe('spoof_detected');
+    expect(deps.checkinPort.submitClockIn).not.toHaveBeenCalled();
+  });
+});

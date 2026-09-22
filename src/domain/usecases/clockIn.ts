@@ -7,6 +7,7 @@ import type {
   Coordinate,
   LogType,
 } from '@domain/entities/checkin';
+import { LIVENESS_FAIL_OPEN } from '@config/liveness';
 
 /** Generate client UUID untuk idempotency. Bukan crypto-grade — cukup untuk
  * mobile-side dedup vanilla mode (collision prob effectively zero per device). */
@@ -107,10 +108,15 @@ export class ClockInUseCase {
     // (wajah tidak ditemukan dengan jelas -- foto tidak valid untuk presensi).
     // TIDAK ada override di sini (beda dengan geofence) -- ini kontrol
     // anti-fraud & validitas foto, resolusinya wajib ambil ulang foto.
-    // Verdict 'Unknown' (kegagalan TEKNIS model/device) TETAP LOLOS --
-    // fail-open, sesuai LIVENESS_FAIL_OPEN.
+    // Verdict 'Unknown' (kegagalan TEKNIS model/device): ikuti LIVENESS_FAIL_OPEN
+    // -- true (default) berarti fail-open (tetap lolos), false berarti
+    // fail-closed (ikut hard block seperti 'Fail'/'NoFace').
     const liveness = input.integrity?.faceLiveness;
-    if (liveness?.verdict === 'Fail' || liveness?.verdict === 'NoFace') {
+    const shouldBlockLiveness =
+      liveness?.verdict === 'Fail' ||
+      liveness?.verdict === 'NoFace' ||
+      (!LIVENESS_FAIL_OPEN && liveness?.verdict === 'Unknown');
+    if (shouldBlockLiveness && liveness) {
       return { kind: 'spoof_detected', liveness };
     }
 

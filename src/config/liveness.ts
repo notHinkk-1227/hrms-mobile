@@ -1,14 +1,17 @@
 /**
  * Konfigurasi fitur anti-spoofing wajah (liveness detection).
  *
+ * PENTING -- file ini WAJIB pure TS (tidak boleh ada `require()` aset RN
+ * seperti model .tflite): domain layer (`domain/usecases/clockIn.ts`) import
+ * `LIVENESS_FAIL_OPEN` dari sini. Kalau file ini ikut require() binary asset,
+ * Jest akan crash saat parsing file .tflite sebagai JS (sudah diverifikasi
+ * langsung -- lihat CHANGELOG/PR terkait). Path model TFLite ada di
+ * `infrastructure/liveness/livenessService.ts` sendiri, bukan di sini.
+ *
  * Threshold di sini adalah nilai AWAL, bukan final -- WAJIB dikalibrasi ulang
  * di Fase 7 berdasarkan testing matriks nyata (wajah asli vs foto cetak vs
  * foto/video di layar HP), lihat catatan FAR/FRR di rencana implementasi.
  */
-
-/** Path require() ke model TFLite, hasil konversi Silent-Face-Anti-Spoofing. */
-export const LIVENESS_MODEL_V2 = require('@shared/assets/models/anti-spoof-minifasnet-v2.tflite');
-export const LIVENESS_MODEL_V1SE = require('@shared/assets/models/anti-spoof-minifasnet-v1se.tflite');
 
 /**
  * Crop scale per model -- BUKAN pilihan bebas, ini bagian dari desain
@@ -32,5 +35,8 @@ export const LIVENESS_THRESHOLD = 0.7;
  * check-in gara-gara bug teknis / device lama. Verdict 'Unknown' akan
  * ditandai untuk review manual via verificationStatus di server nanti
  * (enhanced mode), bukan otomatis lolos tanpa jejak.
+ *
+ * Dipakai langsung oleh ClockInUseCase.submit() -- ubah nilai ini untuk
+ * switch ke fail-closed (verdict 'Unknown' ikut hard block).
  */
 export const LIVENESS_FAIL_OPEN = true;

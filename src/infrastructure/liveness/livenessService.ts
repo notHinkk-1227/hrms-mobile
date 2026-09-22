@@ -4,13 +4,21 @@ import { loadTensorflowModel } from 'react-native-fast-tflite';
 import type { LivenessPort } from '@domain/ports/liveness';
 import type { LivenessSignals } from '@domain/entities/checkin';
 import {
-  LIVENESS_MODEL_V2,
-  LIVENESS_MODEL_V1SE,
   LIVENESS_CROP_SCALE_V2,
   LIVENESS_CROP_SCALE_V1SE,
   LIVENESS_INPUT_SIZE,
   LIVENESS_THRESHOLD,
 } from '@config/liveness';
+
+/**
+ * Path require() ke model TFLite, hasil konversi Silent-Face-Anti-Spoofing.
+ * Sengaja ditaruh di sini (infra layer), BUKAN di config/liveness.ts --
+ * config/liveness.ts wajib pure TS supaya bisa diimport domain layer
+ * (clockIn.ts import LIVENESS_FAIL_OPEN dari sana) tanpa ikut require()
+ * binary asset yang bikin Jest crash.
+ */
+const LIVENESS_MODEL_V2 = require('@shared/assets/models/anti-spoof-minifasnet-v2.tflite');
+const LIVENESS_MODEL_V1SE = require('@shared/assets/models/anti-spoof-minifasnet-v1se.tflite');
 
 /**
  * Bounding box wajah, dinormalisasi ke bentuk {x, y, width, height} dalam
@@ -62,7 +70,6 @@ function normalizeFaceBox(rawFace: unknown): FaceBox | null {
 
   if (__DEV__ && !loggedRawFaceShapeOnce) {
     loggedRawFaceShapeOnce = true;
-    // eslint-disable-next-line no-console
     console.log(
       '[livenessService] Raw face object dari ML Kit (cek sekali, bandingkan ' +
         'dengan hasil normalizeFaceBox di bawah):',
@@ -162,7 +169,6 @@ async function cropAndPreprocess(
 
   if (__DEV__) {
     const effectiveScale = (box.right - box.left) / face.width;
-    // eslint-disable-next-line no-console
     console.log(
       `[livenessService] crop ${debugLabel}: srcImage=${srcW}x${srcH}, ` +
         `faceBox=${face.width}x${face.height}, scale diminta=${scale}, ` +
@@ -190,7 +196,6 @@ async function cropAndPreprocess(
     // untuk lihat PERSIS gambar yang dikirim ke model.
     try {
       const base64Png = snapshot.encodeToBase64(ImageFormat.PNG, 100);
-      // eslint-disable-next-line no-console
       console.log(`[livenessService] crop ${debugLabel} image (buka di browser):\ndata:image/png;base64,${base64Png}`);
     } catch {
       // Kalau encode gagal, jangan sampai ganggu flow utama -- ini cuma debug.
@@ -220,7 +225,6 @@ const CALIBRATION_SCALES = [1.0, 1.2, 1.4, 1.6, 1.75];
 
 async function runCalibrationSweep(photoPath: string, face: FaceBox): Promise<void> {
   if (!modelV2 || !modelV1se) return;
-  // eslint-disable-next-line no-console
   console.log('[KALIBRASI] === Mulai sapuan scale ===');
   for (const scale of CALIBRATION_SCALES) {
     try {
@@ -229,17 +233,18 @@ async function runCalibrationSweep(photoPath: string, face: FaceBox): Promise<vo
       const [outV2, outV1se] = await Promise.all([modelV2.run([input]), modelV1se.run([input])]);
       const smV2 = softmax3(new Float32Array(outV2[0]));
       const smV1se = softmax3(new Float32Array(outV1se[0]));
-      // eslint-disable-next-line no-console
+      // Index 1 = kelas "real", sesuai test.py resmi minivision-ai
+      // (`if label == 1: Real Face`). Log FULL vector supaya kalau tebakan
+      // urutan kelas ternyata masih meleset, gampang diverifikasi manual.
       console.log(
-        `[KALIBRASI] scale=${scale} -> v2_real=${smV2[2].toFixed(4)}, ` +
-          `v1se_real=${smV1se[2].toFixed(4)}, rata2=${((smV2[2] + smV1se[2]) / 2).toFixed(4)}`,
+        `[KALIBRASI] scale=${scale} -> v2=[${Array.from(smV2).map((v) => v.toFixed(4))}], ` +
+          `v1se=[${Array.from(smV1se).map((v) => v.toFixed(4))}], ` +
+          `real(idx1) rata2=${((smV2[1] + smV1se[1]) / 2).toFixed(4)}`,
       );
     } catch (e) {
-      // eslint-disable-next-line no-console
       console.log(`[KALIBRASI] scale=${scale} GAGAL: ${e instanceof Error ? e.message : String(e)}`);
     }
   }
-  // eslint-disable-next-line no-console
   console.log('[KALIBRASI] === Selesai ===');
 }
 // --- END MODE KALIBRASI ---
@@ -311,7 +316,6 @@ export const livenessService: LivenessPort = {
       // (verdict 'NoFace'), BUKAN fail-open seperti 'Unknown'.
       if (!rawFaces || rawFaces.length !== 1) {
         if (__DEV__) {
-          // eslint-disable-next-line no-console
           console.log(`[livenessService] NoFace -- jumlah wajah terdeteksi: ${rawFaces?.length ?? 0}`);
         }
         return noFaceResult();
@@ -324,7 +328,6 @@ export const livenessService: LivenessPort = {
         // kita sendiri, bukan masalah dari foto user) -- fail-open, jangan
         // rugikan user karena bug kita.
         if (__DEV__) {
-          // eslint-disable-next-line no-console
           console.warn('[livenessService] normalizeFaceBox gagal parse -- fail-open (Unknown)');
         }
         return unknownResult();
@@ -352,15 +355,19 @@ export const livenessService: LivenessPort = {
       const softmaxV2 = softmax3(new Float32Array(outV2[0]));
       const softmaxV1se = softmax3(new Float32Array(outV1se[0]));
 
-      // Index 2 = kelas "real" (urutan [fake2d, fake3d, real]).
-      const score = (softmaxV2[2] + softmaxV1se[2]) / 2;
+      // Index 1 = kelas "real". Dikonfirmasi dari test.py resmi
+      // minivision-ai/Silent-Face-Anti-Spoofing: `label = argmax(prediction);
+      // if label == 1: "Real Face" else "Fake Face"`. Sebelumnya kode ini
+      // salah pakai index 2, menyebabkan wajah asli SELALU tertolak (skor
+      // "real" yang dibaca sebenarnya skor kelas fake lain).
+      const score = (softmaxV2[1] + softmaxV1se[1]) / 2;
       const isLive = score >= LIVENESS_THRESHOLD;
 
       if (__DEV__) {
-        // eslint-disable-next-line no-console
         console.log(
           `[livenessService] score=${score.toFixed(4)} ` +
-            `(v2=${softmaxV2[2].toFixed(4)}, v1se=${softmaxV1se[2].toFixed(4)}) ` +
+            `(v2=[${Array.from(softmaxV2).map((v) => v.toFixed(4))}], ` +
+            `v1se=[${Array.from(softmaxV1se).map((v) => v.toFixed(4))}]) ` +
             `threshold=${LIVENESS_THRESHOLD} -> ${isLive ? 'Pass' : 'Fail'}`,
         );
       }
