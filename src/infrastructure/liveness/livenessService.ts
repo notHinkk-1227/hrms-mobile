@@ -1,4 +1,4 @@
-import { Skia, ImageFormat } from '@shopify/react-native-skia';
+import { Skia } from '@shopify/react-native-skia';
 import FaceDetection from '@react-native-ml-kit/face-detection';
 import { loadTensorflowModel } from 'react-native-fast-tflite';
 import type { LivenessPort } from '@domain/ports/liveness';
@@ -24,12 +24,10 @@ const LIVENESS_MODEL_V1SE = require('@shared/assets/models/anti-spoof-minifasnet
  * Bounding box wajah, dinormalisasi ke bentuk {x, y, width, height} dalam
  * pixel koordinat foto asli (bukan koordinat layar).
  *
- * CATATAN: field asli dari @react-native-ml-kit/face-detection belum bisa
- * saya konfirmasi 100% dari dokumentasi (kemungkinan `frame` atau `bounds`,
- * dengan bentuk {left, top, width, height} ATAU {left, top, right, bottom}).
- * Fungsi normalizeFaceBox() di bawah menangani beberapa kemungkinan bentuk
- * sekaligus + logging sekali di __DEV__ supaya gampang diverifikasi manual
- * sekali saat testing di device asli (Fase 6/7) -- lihat komentar di dalam.
+ * Field asli dari @react-native-ml-kit/face-detection sudah dikonfirmasi di
+ * device asli: `frame: {left, top, width, height}`. normalizeFaceBox() di
+ * bawah tetap menangani beberapa kemungkinan bentuk lain (bounds/boundingBox,
+ * right+bottom) sebagai fallback defensif kalau versi library berubah.
  */
 interface FaceBox {
   x: number;
@@ -43,7 +41,6 @@ type TFLiteModel = Awaited<ReturnType<typeof loadTensorflowModel>>;
 let modelV2: TFLiteModel | null = null;
 let modelV1se: TFLiteModel | null = null;
 let loadingPromise: Promise<void> | null = null;
-let loggedRawFaceShapeOnce = false;
 
 /** Softmax manual -- model TFLite cuma output raw logits. */
 function softmax3(logits: Float32Array): [number, number, number] {
@@ -57,25 +54,15 @@ function softmax3(logits: Float32Array): [number, number, number] {
 
 /**
  * Normalisasi bounding box dari hasil mentah @react-native-ml-kit/face-detection
- * ke bentuk {x, y, width, height}. Menangani beberapa kemungkinan nama field
- * sekaligus (frame/bounds, width+height vs right+bottom) supaya tetap jalan
- * kalau tebakan pertama meleset -- TAPI WAJIB diverifikasi manual sekali di
- * device asli (lihat log __DEV__ di bawah).
+ * ke bentuk {x, y, width, height}. Format asli sudah dikonfirmasi di device
+ * (`frame.{left,top,width,height}`); fallback ke beberapa nama field lain
+ * tetap dipertahankan sebagai jaga-jaga kalau versi library berubah.
  */
 function normalizeFaceBox(rawFace: unknown): FaceBox | null {
   const face = rawFace as Record<string, any>;
   const box = face?.frame ?? face?.bounds ?? face?.boundingBox ?? face;
 
   if (!box || typeof box !== 'object') return null;
-
-  if (__DEV__ && !loggedRawFaceShapeOnce) {
-    loggedRawFaceShapeOnce = true;
-    console.log(
-      '[livenessService] Raw face object dari ML Kit (cek sekali, bandingkan ' +
-        'dengan hasil normalizeFaceBox di bawah):',
-      JSON.stringify(face),
-    );
-  }
 
   const left = box.left ?? box.x ?? box.originX;
   const top = box.top ?? box.y ?? box.originY;
@@ -153,8 +140,6 @@ async function cropAndPreprocess(
   photoPath: string,
   face: FaceBox,
   scale: number,
-  debugLabel: string,
-  dumpImage: boolean = true,
 ): Promise<ArrayBuffer | null> {
   const uri = photoPath.startsWith('file://') ? photoPath : `file://${photoPath}`;
   const data = await Skia.Data.fromURI(uri);
@@ -166,16 +151,6 @@ async function cropAndPreprocess(
   const srcW = image.width();
   const srcH = image.height();
   const box = getCropBox(srcW, srcH, face, scale);
-
-  if (__DEV__) {
-    const effectiveScale = (box.right - box.left) / face.width;
-    console.log(
-      `[livenessService] crop ${debugLabel}: srcImage=${srcW}x${srcH}, ` +
-        `faceBox=${face.width}x${face.height}, scale diminta=${scale}, ` +
-        `scale efektif=${effectiveScale.toFixed(2)} (setelah clamp ke batas gambar), ` +
-        `cropBox=[${box.left.toFixed(0)},${box.top.toFixed(0)},${box.right.toFixed(0)},${box.bottom.toFixed(0)}]`,
-    );
-  }
 
   const surface = Skia.Surface.Make(LIVENESS_INPUT_SIZE, LIVENESS_INPUT_SIZE);
   if (!surface) return null;
@@ -191,17 +166,6 @@ async function cropAndPreprocess(
 
   const snapshot = surface.makeImageSnapshot();
 
-  if (__DEV__ && dumpImage) {
-    // paste ke address bar) atau situs seperti base64.guru/converter/decode/image
-    // untuk lihat PERSIS gambar yang dikirim ke model.
-    try {
-      const base64Png = snapshot.encodeToBase64(ImageFormat.PNG, 100);
-      console.log(`[livenessService] crop ${debugLabel} image (buka di browser):\ndata:image/png;base64,${base64Png}`);
-    } catch {
-      // Kalau encode gagal, jangan sampai ganggu flow utama -- ini cuma debug.
-    }
-  }
-
   // readPixels() default RGBA_8888 -- kita buang channel alpha, ambil RGB saja.
   const rgba = snapshot.readPixels() as Uint8Array | null;
   if (!rgba) return null;
@@ -216,38 +180,6 @@ async function cropAndPreprocess(
 
   return rgbFloat.buffer;
 }
-
-// --- MODE KALIBRASI SEMENTARA (Fase 7 diagnosis) ---
-// Nilai scale yang bisa dicapai untuk foto dengan wajah besar (~57% lebar
-// frame) mentok di ~1.75x (lihat log "scale efektif"). Kita sapu beberapa
-// nilai di bawah & termasuk batas itu untuk lihat apakah skor membaik.
-const CALIBRATION_SCALES = [1.0, 1.2, 1.4, 1.6, 1.75];
-
-async function runCalibrationSweep(photoPath: string, face: FaceBox): Promise<void> {
-  if (!modelV2 || !modelV1se) return;
-  console.log('[KALIBRASI] === Mulai sapuan scale ===');
-  for (const scale of CALIBRATION_SCALES) {
-    try {
-      const input = await cropAndPreprocess(photoPath, face, scale, `calib-${scale}`, false);
-      if (!input) continue;
-      const [outV2, outV1se] = await Promise.all([modelV2.run([input]), modelV1se.run([input])]);
-      const smV2 = softmax3(new Float32Array(outV2[0]));
-      const smV1se = softmax3(new Float32Array(outV1se[0]));
-      // Index 1 = kelas "real", sesuai test.py resmi minivision-ai
-      // (`if label == 1: Real Face`). Log FULL vector supaya kalau tebakan
-      // urutan kelas ternyata masih meleset, gampang diverifikasi manual.
-      console.log(
-        `[KALIBRASI] scale=${scale} -> v2=[${Array.from(smV2).map((v) => v.toFixed(4))}], ` +
-          `v1se=[${Array.from(smV1se).map((v) => v.toFixed(4))}], ` +
-          `real(idx1) rata2=${((smV2[1] + smV1se[1]) / 2).toFixed(4)}`,
-      );
-    } catch (e) {
-      console.log(`[KALIBRASI] scale=${scale} GAGAL: ${e instanceof Error ? e.message : String(e)}`);
-    }
-  }
-  console.log('[KALIBRASI] === Selesai ===');
-}
-// --- END MODE KALIBRASI ---
 
 async function ensureModelsLoaded(): Promise<void> {
   if (modelV2 && modelV1se) return;
@@ -333,14 +265,9 @@ export const livenessService: LivenessPort = {
         return unknownResult();
       }
 
-      if (__DEV__) {
-        // MODE KALIBRASI SEMENTARA -- hapus blok ini setelah Fase 7 selesai.
-        await runCalibrationSweep(photoPath, face);
-      }
-
       const [inputV2, inputV1se] = await Promise.all([
-        cropAndPreprocess(photoPath, face, LIVENESS_CROP_SCALE_V2, 'v2(2.7x)'),
-        cropAndPreprocess(photoPath, face, LIVENESS_CROP_SCALE_V1SE, 'v1se(4.0x)'),
+        cropAndPreprocess(photoPath, face, LIVENESS_CROP_SCALE_V2),
+        cropAndPreprocess(photoPath, face, LIVENESS_CROP_SCALE_V1SE),
       ]);
 
       if (!inputV2 || !inputV1se) {
