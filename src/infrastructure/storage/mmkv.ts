@@ -31,6 +31,7 @@ export const StorageKeys = {
   FCM_REGISTERED_AT: 'push.fcm_registered_at',
   FCM_REGISTERED_SITE: 'push.fcm_registered_site',
   SENT_UUIDS: 'sync.sent_uuids',
+  LIVENESS_CALIBRATION_SAMPLES: 'liveness.calibration_samples',
 } as const;
 
 export type StorageKey = (typeof StorageKeys)[keyof typeof StorageKeys];

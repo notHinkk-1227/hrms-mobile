@@ -392,6 +392,13 @@ export function DebugScreen({ navigation }: Props): React.JSX.Element {
           </View>
         )}
 
+        <Pressable
+          onPress={() => navigation.navigate('LivenessCalibration')}
+          style={({ pressed }) => [styles.btn, styles.btnSecondary, pressed && styles.btnPressed]}
+        >
+          <Text style={styles.btnTextSecondary}>Kalibrasi Threshold Anti-Spoofing (rigorous)</Text>
+        </Pressable>
+
         <Text style={styles.note}>
           Long-press versi di Tentang Aplikasi untuk buka layar ini. Semua nilai
           bisa di-copy (long-press). Gunakan untuk laporkan bug ke developer.

@@ -18,6 +18,7 @@ import { EmployeeDirectoryScreen } from '@features/employees/EmployeeDirectorySc
 import { EmployeeDetailScreen } from '@features/employees/EmployeeDetailScreen';
 import { AboutScreen } from '@features/about/AboutScreen';
 import { DebugScreen } from '@features/about/DebugScreen';
+import { LivenessCalibrationScreen } from '@features/about/LivenessCalibrationScreen';
 import type { MainStackParamList } from './types';
 
 const Stack = createNativeStackNavigator<MainStackParamList>();
@@ -47,6 +48,7 @@ export function MainStack(): React.JSX.Element {
       <Stack.Screen name="EmployeeDetail" component={EmployeeDetailScreen} />
       <Stack.Screen name="About" component={AboutScreen} />
       <Stack.Screen name="Debug" component={DebugScreen} />
+      <Stack.Screen name="LivenessCalibration" component={LivenessCalibrationScreen} />
     </Stack.Navigator>
   );
 }

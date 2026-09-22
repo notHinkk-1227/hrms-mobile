@@ -58,6 +58,7 @@ export type MainStackParamList = {
   EmployeeDetail: { name: string };
   About: undefined;
   Debug: undefined;
+  LivenessCalibration: undefined;
 };
 
 export type RootStackParamList = {

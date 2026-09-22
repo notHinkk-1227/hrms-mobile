@@ -207,6 +207,69 @@ async function ensureModelsLoaded(): Promise<void> {
   return loadingPromise;
 }
 
+/**
+ * Hasil inferensi mentah, sebelum keputusan threshold diterapkan.
+ * Internal -- dipakai bareng oleh checkLiveness() (produksi) dan
+ * getRawLivenessScore() (kalibrasi/diagnostik).
+ */
+type RawInferenceResult =
+  | { kind: 'ok'; softmaxV2: [number, number, number]; softmaxV1se: [number, number, number] }
+  | { kind: 'no-face'; facesDetected: number }
+  | { kind: 'unknown' };
+
+async function runInference(photoPath: string): Promise<RawInferenceResult> {
+  try {
+    await ensureModelsLoaded();
+    if (!modelV2 || !modelV1se) {
+      return { kind: 'unknown' };
+    }
+
+    const uri = photoPath.startsWith('file://') ? photoPath : `file://${photoPath}`;
+    const rawFaces = await FaceDetection.detect(uri);
+
+    // 0 wajah atau >1 wajah -- ML Kit berhasil jalan, ini BUKAN kegagalan
+    // teknis, ini sinyal valid bahwa foto tidak bisa dipakai.
+    if (!rawFaces || rawFaces.length !== 1) {
+      if (__DEV__) {
+        console.log(`[livenessService] NoFace -- jumlah wajah terdeteksi: ${rawFaces?.length ?? 0}`);
+      }
+      return { kind: 'no-face', facesDetected: rawFaces?.length ?? 0 };
+    }
+
+    const face = normalizeFaceBox(rawFaces[0]);
+    if (!face) {
+      // ML Kit MENEMUKAN 1 wajah, tapi parsing bounding box-nya gagal
+      // (kemungkinan besar bug kode kita sendiri) -- treated sebagai
+      // 'unknown' (kegagalan teknis), bukan 'no-face'.
+      if (__DEV__) {
+        console.warn('[livenessService] normalizeFaceBox gagal parse -- fail-open (Unknown)');
+      }
+      return { kind: 'unknown' };
+    }
+
+    const [inputV2, inputV1se] = await Promise.all([
+      cropAndPreprocess(photoPath, face, LIVENESS_CROP_SCALE_V2),
+      cropAndPreprocess(photoPath, face, LIVENESS_CROP_SCALE_V1SE),
+    ]);
+
+    if (!inputV2 || !inputV1se) {
+      return { kind: 'unknown' };
+    }
+
+    const [outV2, outV1se] = await Promise.all([
+      modelV2.run([inputV2]),
+      modelV1se.run([inputV1se]),
+    ]);
+
+    const softmaxV2 = softmax3(new Float32Array(outV2[0]));
+    const softmaxV1se = softmax3(new Float32Array(outV1se[0]));
+
+    return { kind: 'ok', softmaxV2, softmaxV1se };
+  } catch {
+    return { kind: 'unknown' };
+  }
+}
+
 function unknownResult(): LivenessSignals {
   // isLive selalu false untuk verdict 'Unknown' -- port ini cuma melapor apa
   // yang terjadi (default aman: tidak diketahui hidup atau tidak). Keputusan
@@ -234,79 +297,63 @@ export const livenessService: LivenessPort = {
   },
 
   async checkLiveness(photoPath: string): Promise<LivenessSignals> {
-    try {
-      await ensureModelsLoaded();
-      if (!modelV2 || !modelV1se) {
-        return unknownResult();
-      }
+    const result = await runInference(photoPath);
 
-      const uri = photoPath.startsWith('file://') ? photoPath : `file://${photoPath}`;
-      const rawFaces = await FaceDetection.detect(uri);
+    if (result.kind === 'unknown') return unknownResult();
+    if (result.kind === 'no-face') return noFaceResult();
 
-      // 0 wajah atau >1 wajah -- ML Kit berhasil jalan, ini BUKAN kegagalan
-      // teknis, ini sinyal valid bahwa foto tidak bisa dipakai. Hard block
-      // (verdict 'NoFace'), BUKAN fail-open seperti 'Unknown'.
-      if (!rawFaces || rawFaces.length !== 1) {
-        if (__DEV__) {
-          console.log(`[livenessService] NoFace -- jumlah wajah terdeteksi: ${rawFaces?.length ?? 0}`);
-        }
-        return noFaceResult();
-      }
+    // Index 1 = kelas "real". Dikonfirmasi dari test.py resmi
+    // minivision-ai/Silent-Face-Anti-Spoofing: `label = argmax(prediction);
+    // if label == 1: "Real Face" else "Fake Face"`. Sebelumnya kode ini
+    // salah pakai index 2, menyebabkan wajah asli SELALU tertolak (skor
+    // "real" yang dibaca sebenarnya skor kelas fake lain).
+    const score = (result.softmaxV2[1] + result.softmaxV1se[1]) / 2;
+    const isLive = score >= LIVENESS_THRESHOLD;
 
-      const face = normalizeFaceBox(rawFaces[0]);
-      if (!face) {
-        // Beda kasus dengan NoFace: di sini ML Kit MENEMUKAN 1 wajah, tapi
-        // parsing bounding box-nya yang gagal (kemungkinan besar bug kode
-        // kita sendiri, bukan masalah dari foto user) -- fail-open, jangan
-        // rugikan user karena bug kita.
-        if (__DEV__) {
-          console.warn('[livenessService] normalizeFaceBox gagal parse -- fail-open (Unknown)');
-        }
-        return unknownResult();
-      }
-
-      const [inputV2, inputV1se] = await Promise.all([
-        cropAndPreprocess(photoPath, face, LIVENESS_CROP_SCALE_V2),
-        cropAndPreprocess(photoPath, face, LIVENESS_CROP_SCALE_V1SE),
-      ]);
-
-      if (!inputV2 || !inputV1se) {
-        return unknownResult();
-      }
-
-      const [outV2, outV1se] = await Promise.all([
-        modelV2.run([inputV2]),
-        modelV1se.run([inputV1se]),
-      ]);
-
-      const softmaxV2 = softmax3(new Float32Array(outV2[0]));
-      const softmaxV1se = softmax3(new Float32Array(outV1se[0]));
-
-      // Index 1 = kelas "real". Dikonfirmasi dari test.py resmi
-      // minivision-ai/Silent-Face-Anti-Spoofing: `label = argmax(prediction);
-      // if label == 1: "Real Face" else "Fake Face"`. Sebelumnya kode ini
-      // salah pakai index 2, menyebabkan wajah asli SELALU tertolak (skor
-      // "real" yang dibaca sebenarnya skor kelas fake lain).
-      const score = (softmaxV2[1] + softmaxV1se[1]) / 2;
-      const isLive = score >= LIVENESS_THRESHOLD;
-
-      if (__DEV__) {
-        console.log(
-          `[livenessService] score=${score.toFixed(4)} ` +
-            `(v2=[${Array.from(softmaxV2).map((v) => v.toFixed(4))}], ` +
-            `v1se=[${Array.from(softmaxV1se).map((v) => v.toFixed(4))}]) ` +
-            `threshold=${LIVENESS_THRESHOLD} -> ${isLive ? 'Pass' : 'Fail'}`,
-        );
-      }
-
-      return {
-        isLive,
-        score,
-        verdict: isLive ? 'Pass' : 'Fail',
-      };
-    } catch {
-      // Tidak pernah throw ke caller -- fail-open, sesuai kontrak LivenessPort.
-      return unknownResult();
+    if (__DEV__) {
+      console.log(
+        `[livenessService] score=${score.toFixed(4)} ` +
+          `(v2=[${Array.from(result.softmaxV2).map((v) => v.toFixed(4))}], ` +
+          `v1se=[${Array.from(result.softmaxV1se).map((v) => v.toFixed(4))}]) ` +
+          `threshold=${LIVENESS_THRESHOLD} -> ${isLive ? 'Pass' : 'Fail'}`,
+      );
     }
+
+    return {
+      isLive,
+      score,
+      verdict: isLive ? 'Pass' : 'Fail',
+    };
   },
 };
+
+/**
+ * Hasil inferensi mentah untuk keperluan kalibrasi -- BEDA dari
+ * LivenessSignals (yang sudah menerapkan LIVENESS_THRESHOLD). Dipakai oleh
+ * LivenessCalibrationScreen (dev tool) untuk mengumpulkan data mentah dari
+ * banyak sampel foto berlabel, supaya threshold bisa dikalibrasi ulang
+ * berdasarkan data nyata (FAR/FRR), bukan cuma satu-dua kali coba manual.
+ */
+export interface LivenessRawScore {
+  status: 'ok' | 'no-face' | 'unknown';
+  /** Softmax 3-kelas model v2 (scale 2.7x). Index 1 = kelas "real". */
+  softmaxV2?: [number, number, number];
+  /** Softmax 3-kelas model v1se (scale 4.0x). Index 1 = kelas "real". */
+  softmaxV1se?: [number, number, number];
+  /** Rata-rata skor "real" (index 1) kedua model -- ini yang dibandingkan
+   * dengan LIVENESS_THRESHOLD di checkLiveness(). */
+  scoreReal?: number;
+}
+
+export async function getRawLivenessScore(photoPath: string): Promise<LivenessRawScore> {
+  const result = await runInference(photoPath);
+  if (result.kind !== 'ok') {
+    return { status: result.kind };
+  }
+  return {
+    status: 'ok',
+    softmaxV2: result.softmaxV2,
+    softmaxV1se: result.softmaxV1se,
+    scoreReal: (result.softmaxV2[1] + result.softmaxV1se[1]) / 2,
+  };
+}
