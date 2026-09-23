@@ -7,7 +7,7 @@ import type {
   Coordinate,
   LogType,
 } from '@domain/entities/checkin';
-import { LIVENESS_FAIL_OPEN } from '@config/liveness';
+import { LIVENESS_FAIL_OPEN, LIVENESS_ENFORCEMENT_ENABLED } from '@config/liveness';
 
 /** Generate client UUID untuk idempotency. Bukan crypto-grade — cukup untuk
  * mobile-side dedup vanilla mode (collision prob effectively zero per device). */
@@ -111,11 +111,17 @@ export class ClockInUseCase {
     // Verdict 'Unknown' (kegagalan TEKNIS model/device): ikuti LIVENESS_FAIL_OPEN
     // -- true (default) berarti fail-open (tetap lolos), false berarti
     // fail-closed (ikut hard block seperti 'Fail'/'NoFace').
+    //
+    // LIVENESS_ENFORCEMENT_ENABLED = false -> MODE LOG-ONLY: faceLiveness
+    // tetap dihitung & tetap ikut ke payload di bawah (data tetap terkumpul
+    // untuk kalibrasi/analisis), tapi TIDAK PERNAH memblokir apa pun
+    // hasilnya. Dipakai saat rollout bertahap sebelum threshold final siap.
     const liveness = input.integrity?.faceLiveness;
     const shouldBlockLiveness =
-      liveness?.verdict === 'Fail' ||
-      liveness?.verdict === 'NoFace' ||
-      (!LIVENESS_FAIL_OPEN && liveness?.verdict === 'Unknown');
+      LIVENESS_ENFORCEMENT_ENABLED &&
+      (liveness?.verdict === 'Fail' ||
+        liveness?.verdict === 'NoFace' ||
+        (!LIVENESS_FAIL_OPEN && liveness?.verdict === 'Unknown'));
     if (shouldBlockLiveness && liveness) {
       return { kind: 'spoof_detected', liveness };
     }

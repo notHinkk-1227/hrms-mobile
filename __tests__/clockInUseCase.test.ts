@@ -128,9 +128,15 @@ describe('ClockInUseCase.submit — LIVENESS_FAIL_OPEN=false (fail-closed)', () 
   // LIVENESS_FAIL_OPEN di-mock false di sini untuk verifikasi cabang
   // fail-closed benar-benar dibaca dari config, bukan hardcoded di use case.
   // Constant asli di config/liveness.ts tetap true (default production).
+  // LIVENESS_ENFORCEMENT_ENABLED WAJIB ikut di-mock (true) -- kalau tidak,
+  // jadi undefined (falsy) dan shouldBlockLiveness selalu false, bikin test
+  // di bawah ini salah lulus untuk alasan yang salah.
   beforeEach(() => {
     jest.resetModules();
-    jest.doMock('@config/liveness', () => ({ LIVENESS_FAIL_OPEN: false }));
+    jest.doMock('@config/liveness', () => ({
+      LIVENESS_FAIL_OPEN: false,
+      LIVENESS_ENFORCEMENT_ENABLED: true,
+    }));
   });
 
   afterEach(() => {
@@ -151,5 +157,48 @@ describe('ClockInUseCase.submit — LIVENESS_FAIL_OPEN=false (fail-closed)', () 
 
     expect(outcome.kind).toBe('spoof_detected');
     expect(deps.checkinPort.submitClockIn).not.toHaveBeenCalled();
+  });
+});
+
+describe('ClockInUseCase.submit — LIVENESS_ENFORCEMENT_ENABLED=false (mode log-only)', () => {
+  beforeEach(() => {
+    jest.resetModules();
+    jest.doMock('@config/liveness', () => ({
+      LIVENESS_FAIL_OPEN: true,
+      LIVENESS_ENFORCEMENT_ENABLED: false,
+    }));
+  });
+
+  afterEach(() => {
+    jest.dontMock('@config/liveness');
+  });
+
+  test("verdict 'Fail' + enforcement OFF -> TIDAK diblokir, tapi faceLiveness tetap ikut payload", async () => {
+    const { ClockInUseCase: MockedClockInUseCase } = require('@domain/usecases/clockIn');
+    const deps = makeDeps();
+    const useCase = new MockedClockInUseCase(deps);
+    const liveness: LivenessSignals = { isLive: false, score: 0.05, verdict: 'Fail' };
+
+    const outcome = await useCase.submit(makeInput(liveness), makePreview());
+
+    // Beda dari test enforcement ON: di sini submit HARUS tetap sukses,
+    // bukan spoof_detected -- ini yang membuktikan mode log-only benar-benar
+    // tidak memblokir apa pun.
+    expect(outcome.kind).toBe('success');
+    expect(deps.checkinPort.submitClockIn).toHaveBeenCalledTimes(1);
+    const [payload] = (deps.checkinPort.submitClockIn as jest.Mock).mock.calls[0];
+    expect(payload.integrity.faceLiveness).toEqual(liveness);
+  });
+
+  test("verdict 'NoFace' + enforcement OFF -> TIDAK diblokir juga", async () => {
+    const { ClockInUseCase: MockedClockInUseCase } = require('@domain/usecases/clockIn');
+    const deps = makeDeps();
+    const useCase = new MockedClockInUseCase(deps);
+    const liveness: LivenessSignals = { isLive: false, score: 0, verdict: 'NoFace' };
+
+    const outcome = await useCase.submit(makeInput(liveness), makePreview());
+
+    expect(outcome.kind).toBe('success');
+    expect(deps.checkinPort.submitClockIn).toHaveBeenCalledTimes(1);
   });
 });

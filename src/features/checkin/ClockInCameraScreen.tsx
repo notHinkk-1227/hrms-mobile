@@ -20,6 +20,7 @@ import { Screen } from '@shared/components/Screen';
 import { tokens } from '@shared/theme/tokens';
 import type { HomeStackParamList } from '@app/navigation/types';
 import { livenessService } from '@infrastructure/liveness/livenessService';
+import { LIVENESS_ENFORCEMENT_ENABLED } from '@config/liveness';
 
 type Props = NativeStackScreenProps<HomeStackParamList, 'ClockInCamera'>;
 
@@ -92,12 +93,18 @@ export function ClockInCameraScreen({ navigation, route }: Props): React.JSX.Ele
     setBlockReason(null);
     try {
       const faceLiveness = await livenessService.checkLiveness(photoPath);
-      if (faceLiveness.verdict === 'Fail' || faceLiveness.verdict === 'NoFace') {
+      const shouldBlock =
+        LIVENESS_ENFORCEMENT_ENABLED &&
+        (faceLiveness.verdict === 'Fail' || faceLiveness.verdict === 'NoFace');
+      if (shouldBlock) {
         // Hard block di level UI juga (selain di use case) -- user harus
         // ambil ulang foto, tidak ada tombol "lanjut saja". Pesan beda
         // tergantung alasan: 'Fail' = terdeteksi spoof, 'NoFace' = wajah
         // tidak ditemukan dengan jelas di frame (beda kasus, bukan spoof).
-        setBlockReason(faceLiveness.verdict);
+        // Kalau LIVENESS_ENFORCEMENT_ENABLED=false (mode log-only), verdict
+        // apa pun tetap lanjut ke Confirm -- faceLiveness tetap dikirim ke
+        // use case & payload untuk pengumpulan data, cuma tidak memblokir.
+        setBlockReason(faceLiveness.verdict as 'Fail' | 'NoFace');
         return;
       }
       navigation.replace('ClockInConfirm', { logType, photoPath, faceLiveness });
