@@ -19,7 +19,11 @@ import { Check, RotateCcw, X } from 'lucide-react-native';
 import { Screen } from '@shared/components/Screen';
 import { tokens } from '@shared/theme/tokens';
 import type { HomeStackParamList } from '@app/navigation/types';
-import { livenessService } from '@infrastructure/liveness/livenessService';
+// Fase 2 PRD (docs/LIVENESS_SERVER_MIGRATION_PRD.md): sementara pakai server
+// dev lokal, bukan model on-device. Untuk switch balik ke model lokal,
+// ganti baris ini ke:
+//   import { livenessService } from '@infrastructure/liveness/livenessService';
+import { remoteLivenessService as livenessService } from '@infrastructure/liveness/remoteLivenessService';
 import { LIVENESS_ENFORCEMENT_ENABLED } from '@config/liveness';
 
 type Props = NativeStackScreenProps<HomeStackParamList, 'ClockInCamera'>;
